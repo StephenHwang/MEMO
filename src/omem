@@ -5,9 +5,9 @@ usage() {
 echo \
 "omem: order mem toolkit
 
-usage: ./omem <commmand> [options]
+Usage: ./omem <commmand> [options]
 
-main omem commands:
+Main omem commands:
   -- index         overlap order MEM index construction from a full document array
   -- query         query overlap order MEMs of a specified region
 

@@ -1,21 +1,47 @@
 #!/bin/bash
-# Query region:
-#   Given a region, query all kmers of specified K in that window
-#
-#   Output: bed file (inclusive end) with intervals where a kmer starting there is
-#           unique for that order MEM
 
 set -euo pipefail
-# set -euxo pipefail
+
+# basic params
+K=12
+BED_FILE=
+NUM_ORDER_MEMS=
+QUERY_REGION=
+
+# output
+OUTPUT_DIR='\.'
+
+# other
+SAVE_INTERMEDIATES='false'
+SHOW_PROGRESS='false'
+SANITY_CHECK='false'
+
+# NUM_ORDER_MEMS=4
+# BED_FILE=e_coli_ordered_mems.bed
+# QUERY_CHR=NZ_CP015023.1
+# QUERY_START=0
+# QUERY_END=5506800
 
 
 usage() {
 echo \
-"usage: ./omem query [options]
+"Usage: ./omem query [options]
 
-basic options:
-  -k INT           kmer
-  -query           query overlap order MEMs of a specified region
+Query k-mer conservation across specified genome coordinates.
+
+Output: bed file of interval position found in order-number other documents in
+        the pangenome
+
+Basic options:
+  -k INT               k-mer size [12]
+  -b FILE              compressed, indexed bed file of overlap order MEMs
+  -n INT               number of other (non-pivot) documents in pangenome
+  -r CHR:start-end     target query region
+  -s                   save intermediate files
+  -p                   show progress
+
+Output options:
+  -o FILE              output directory ['/.']
 "
 exit 0
 }
@@ -24,62 +50,67 @@ if [ "$#" -eq 0 ] || [ "$1" = "-h" ]; then
     usage
 fi
 
+# parse flags
+while getopts "k:b:n:r:o:sp" OPTION
+do
+    case $OPTION in
+        k )
+            K=$OPTARG
+            ;;
+        b )
+            BED_FILE=$OPTARG
+            ;;
+        n )
+            NUM_ORDER_MEMS=$OPTARG
+            ;;
+        r )
+            QUERY_REGION=$OPTARG
+            ;;
+        o )
+            OUTPUT_DIR=$OPTARG
+            ;;
+        s )
+            SAVE_INTERMEDIATES='true'
+            ;;
+        p )
+            SHOW_PROGRESS='true'
+            ;;
+        * )
+            usage
+            ;;
+    esac
+done
 
+# Parse QUERY_REGION into record, start, end
+QUERY_START_END=$(echo $QUERY_REGION | cut -d':' -f2)
+QUERY_CHR=$(echo $QUERY_REGION | cut -d':' -f1)
+QUERY_START=$(echo $QUERY_START_END | cut -d'-' -f1)
+QUERY_END=$(echo $QUERY_START_END | cut -d'-' -f2)
 
+# Output files
+OUT_FILE=$OUTPUT_DIR/omem_$K\mer.bed
+OUT_SUMMARY_FILE=$OUTPUT_DIR/omem_$K\mer.stats
 
-# QUERY
-K=12
-QUERY_CHR=
-QUERY_START=
-QUERY_END=
-QUERY_SAVE_TMP_FILES=false
-QUERY_OUT_DIR='\.'
-# QUERY_CHR=NZ_CP015023.1
-# QUERY_START=0
-# QUERY_END=5506800
-
-
-
-
-
-
-# query
-BED_FILE=e_coli_ordered_mems.bed
-NUM_ORDER_MEMS=4
-QUERY_CHR=NZ_CP015023.1
-QUERY_START=0
-QUERY_END=5506800
-SAVE_INTERMEDIATES=true
-SANITY_CHECK=true
-
-# output
-#K=$1
-K=12
-OUT_DIR=out
-OUT_FILE=$OUT_DIR/order_mem_Xs_k$K.bed
-OUT_SUMMARY_FILE=$OUT_DIR/order_mem_Xs_k$K.stats
+################################################################################
+# Start query
+echo -e "STARTING: Querying $QUERY_CHR : $QUERY_START - $QUERY_END"
 echo "Output bed file: $OUT_FILE"
 echo "Output summary file: $OUT_SUMMARY_FILE"
 
-
-################################################################################
-# Query to mems
-echo -e "STARTING: Querying $QUERY_CHR : $QUERY_START - $QUERY_END"
-
-################################################################################
 # Make query bed
 echo -e "$QUERY_CHR\t$QUERY_START\t$QUERY_END" > query.bed     # whole region
 
-################################################################################
-echo -e "          Extracting window"
 # extract window
+if [ "$SHOW_PROGRESS" = "true" ]; then
+  echo "Extracting window"
+fi
 tabix $BED_FILE.gz $QUERY_CHR:$QUERY_START-$QUERY_END | \
   bedtools intersect -sorted -wa -f 1 -a "stdin" -b query.bed \
   > $OUT_FILE
 
 # Save intermediate files
 if [ "$SAVE_INTERMEDIATES" = true ] ; then
-  cp $OUT_FILE $OUT_DIR/order_mem_overlaps.bed
+  cp $OUT_FILE $OUTPUT_DIR/order_mem_overlaps.bed
 fi
 
 ################################################################################
@@ -98,11 +129,6 @@ awk -v k=$K '{
 # }1' OFS='\t' order_mem_overlaps.bed \    # use pre-extracted region
 
 
-# Save intermediate files
-if [ "$SAVE_INTERMEDIATES" = true ] ; then
-  cp $OUT_FILE.tmp $OUT_DIR/pre_merged_ordered_mems.bed
-fi
-
 ################################################################################
 # merge the for each
 > $OUT_FILE     # clean out file before repopulating
@@ -113,26 +139,19 @@ do
     sed "s/$/\t$MEM_IDX/" \
     >> $OUT_FILE
 done
+
+# Save intermediate files
+if [ "$SAVE_INTERMEDIATES" = true ] ; then
+  cp $OUT_FILE.tmp $OUTPUT_DIR/pre_merged_ordered_mems.bed
+fi
 rm $OUT_FILE.tmp
 
-################################################################################
 # sort the final bed file
 sort -k1,1V -k2,2n -o $OUT_FILE $OUT_FILE
 
 ################################################################################
 # Output some summary stats
-# - Output windows mark Xs - positions where a kmer starting there
-#                              is unique for that order MEM
-# - Interpretation:
-#   - for an order:
-#     - % of pivot genome that is unique for that order statistic
-#   - sum of orders:
-#     - (100% - %) = % of pivot genome that is not unique
-#     - individual docs don't sum to all due to overlap of Xs between orders
-
 echo -e "order\tnum_records\tbp_over_window\tper_coverage" > $OUT_SUMMARY_FILE
-
-# individual order MEMs
 for MEM_IDX in $(seq 1 $NUM_ORDER_MEMS)
 do
   awk -v mem_idx=$MEM_IDX '$4==mem_idx' OFS='\t' $OUT_FILE | \
@@ -141,22 +160,9 @@ do
     >> $OUT_SUMMARY_FILE
 done
 
-
 ################################################################################
-# Assert (all_order_Xs == last_order_mem)
-if [ "$SANITY_CHECK" = true ] ; then
-  ALL_ORDER_X=$(bedtools coverage -sorted -a query.bed -b $OUT_FILE | cut -f5)
-  HIGHEST_ORDER_X=$(awk -v mem_idx=$NUM_ORDER_MEMS '$4==mem_idx' OFS='\t' $OUT_FILE | \
-                     bedtools coverage -sorted -a query.bed -b "stdin" | \
-                     cut -f5)
-  if [ $ALL_ORDER_X != $HIGHEST_ORDER_X ]; then
-    echo "ERROR: Lower order overlap MEMs are not contained in higher order MEMs."
-    exit 1
-  else
-    echo "Passes order overlap MEM containment test."
-  fi
+
+if [ "$SHOW_PROGRESS" = "true" ]; then
+  echo "DONE!"
 fi
 
-
-################################################################################
-echo "DONE!"

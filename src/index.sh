@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# set -euxo pipefail
 set -euo pipefail
 
 # OUTPUT_BEDFILE=e_coli_ordered_mems.bed
@@ -8,7 +7,6 @@ set -euo pipefail
 # DAP_FILE=full_dap.txt
 # INDEX_RECORDS="NZ_CP015023.1 NZ_CP015022.1"
 
-## Index
 FAI_FILE=
 DAP_FILE=
 INDEX_RECORDS=
@@ -18,18 +16,19 @@ SHOW_PROGRESS='false'
 
 usage() {
 echo \
-"usage: ./omem index [options]
+"Usage: ./omem index [options]
 
 Create a compressed and indexed overlap MEM interval bed file from a full document array.
 
-basic options:
-  -f FILE          document list fai file
-  -d FILE          full document array
-  -r RECORDS       fasta records to query
-  -p               show progress
-output options:
-  -o FILE          output directory
-  -b FILE          output file name
+Basic options:
+  -f FILE              document list fai file
+  -d FILE              full document array
+  -r RECORDS           fasta records to query
+  -p                   show progress
+
+Output options:
+  -o FILE              output directory ['/.']
+  -b FILE              output file name
 "
 exit 0
 }
@@ -39,10 +38,10 @@ if [ "$#" -eq 0 ] || [ "$1" = "-h" ]; then
 fi
 
 # parse flags
-while getopts "f:d:r:o:b:p" OPTION
+while getopts "l:d:r:o:b:p" OPTION
 do
     case $OPTION in
-        f )
+        l )
             FAI_FILE=$OPTARG
             ;;
         d )
