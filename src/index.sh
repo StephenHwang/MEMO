@@ -1,35 +1,35 @@
 #!/bin/bash
-#  Create overlap MEM interval index from document array.
 
 # set -euxo pipefail
 set -euo pipefail
 
-# list of flags
-K=12
-
+# OUTPUT_BEDFILE=e_coli_ordered_mems.bed
+# FAI_FILE=input.fna.fai
+# DAP_FILE=full_dap.txt
+# INDEX_RECORDS="NZ_CP015023.1 NZ_CP015022.1"
 
 ## Index
-#BED_FILE=
-#FAI_FILE=
-#DAP_FILE=
-#NUM_ORDER_MEMS=
-#INDEX_RECORDS=
-## BED_FILE=e_coli_ordered_mems.bed
-## FAI_FILE=input.fna.fai
-## DAP_FILE=full_dap.txt
-## NUM_ORDER_MEMS=4
-## INDEX_RECORDS="NZ_CP015023.1 NZ_CP015022.1"
+FAI_FILE=
+DAP_FILE=
+INDEX_RECORDS=
+OUTPUT_DIR='/.'
+OUTPUT_BEDFILE=
+SHOW_PROGRESS='false'
 
 usage() {
-echo "omem: order mem toolkit
+echo \
+"usage: ./omem index [options]
 
-usage: ./omem <commmand> [options]
+Create a compressed and indexed overlap MEM interval bed file from a full document array.
 
-main omem commands:
-  -- index         overlap order MEM index construction from a full document array
-  -- query         query overlap order MEMs of a specified region
-
-For more commands, type omem -h
+basic options:
+  -f FILE          document list fai file
+  -d FILE          full document array
+  -r RECORDS       fasta records to query
+  -p               show progress
+output options:
+  -o FILE          output directory
+  -b FILE          output file name
 "
 exit 0
 }
@@ -38,17 +38,27 @@ if [ "$#" -eq 0 ] || [ "$1" = "-h" ]; then
     usage
 fi
 
-
-
 # parse flags
-while getopts "k:" OPTION
+while getopts "f:d:r:o:b:p" OPTION
 do
     case $OPTION in
-        k )
-            K=$OPTARG
+        f )
+            FAI_FILE=$OPTARG
             ;;
-        n )
-            n="n"
+        d )
+            DAP_FILE=$OPTARG
+            ;;
+        r )
+            INDEX_RECORDS=$OPTARG
+            ;;
+        o )
+            OUTPUT_DIR=$OPTARG
+            ;;
+        b )
+            OUTPUT_BEDFILE=$OPTARG
+            ;;
+        p )
+            SHOW_PROGRESS='true'
             ;;
         * )
             usage
@@ -56,39 +66,26 @@ do
     esac
 done
 
-echo "K=$K"
+# Extract overlap MEM intervals
+if [ "$SHOW_PROGRESS" = "true" ]; then
+  echo "Converting document array profile to overlap order MEM intervals."
+fi
+dap_to_ms_bed.py \
+  --mems \
+  --overlap \
+  --fai $FAI_FILE \
+  --dap $DAP_FILE \
+  --query $INDEX_RECORDS \
+  > $OUT_DIR/$OUTPUT_BEDFILE
 
+# Sort, compress, and index
+if [ "$SHOW_PROGRESS" = "true" ]; then
+  echo "Sorting, compressing, and indexing interval file."
+fi
+sort -k1,1V -k2,2n -o $OUTPUT_DIR/$OUTPUT_BEDFILE $OUTPUT_DIR/$OUTPUT_BEDFILE
+bgzip -f $OUTPUT_DIR/$OUTPUT_BEDFILE
+tabix -p bed $OUTPUT_DIR/$OUTPUT_BEDFILE.gz
 
-
-
-
-
-
-
-
-
-
-#BED_FILE=e_coli_ordered_mems.bed
-#FAI_FILE=input.fna.fai
-#DAP_FILE=full_dap.txt
-#INDEX_RECORDS="NZ_CP015023.1 NZ_CP015022.1"
-#
-## Extact overlap MEM intervals
-#echo -e "STARTING: convert dap to bed\n"
-#/scratch4/mschatz1/sjhwang/scripts/dap_to_ms_bed.py \
-#  --mems \
-#  --overlap \
-#  --fai $FAI_FILE \
-#  --dap $DAP_FILE \
-#  --query $INDEX_RECORDS \
-#  > $BED_FILE
-#
-## Sort, compress, and index
-#echo -e "Sorting, compressing, and indexing bed file\n"
-#sort -k1,1V -k2,2n -o $BED_FILE $BED_FILE
-## TODO: adjust sort... can we only sort by
-#rm -f $BED_FILE.gz
-#bgzip $BED_FILE
-#tabix -p bed $BED_FILE.gz
-#
-#echo "DONE!"
+if [ "$SHOW_PROGRESS" = "true" ]; then
+  echo "Done indexing!"
+fi

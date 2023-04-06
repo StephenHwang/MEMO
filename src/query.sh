@@ -9,17 +9,13 @@ set -euo pipefail
 # set -euxo pipefail
 
 
-
 usage() {
-echo "omem: order mem toolkit
+echo \
+"usage: ./omem query [options]
 
-usage: ./omem <commmand> [options]
-
-main omem commands:
-  -- index         overlap order MEM index construction from a full document array
-  -- query         query overlap order MEMs of a specified region
-
-For more commands, type omem -h
+basic options:
+  -k INT           kmer
+  -query           query overlap order MEMs of a specified region
 "
 exit 0
 }
