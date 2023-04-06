@@ -1,0 +1,43 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+echo "omem: order mem toolkit
+
+usage: ./omem <commmand> [options]
+
+main omem commands:
+  -- index         overlap order MEM index construction from a full document array
+  -- query         query overlap order MEMs of a specified region
+
+For more commands, type omem -h
+"
+exit 0
+}
+
+if [ "$#" -eq 0 ] || [ "$1" = "-h" ]; then
+    usage
+fi
+
+# get subcommand
+SUBCOMMAND=$1; shift
+
+# run subcommand
+case $SUBCOMMAND in
+
+  # Index region
+  index)
+    ./index.sh "$@"
+    ;;
+
+  # Query region
+  query)
+    ./query.sh "$@"
+    ;;
+
+  *)
+    echo -e "Error unrecognized command:" $SUBCOMMAND "\n"
+    usage
+    ;;
+esac
+

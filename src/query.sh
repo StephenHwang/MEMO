@@ -8,6 +8,45 @@
 set -euo pipefail
 # set -euxo pipefail
 
+
+
+usage() {
+echo "omem: order mem toolkit
+
+usage: ./omem <commmand> [options]
+
+main omem commands:
+  -- index         overlap order MEM index construction from a full document array
+  -- query         query overlap order MEMs of a specified region
+
+For more commands, type omem -h
+"
+exit 0
+}
+
+if [ "$#" -eq 0 ] || [ "$1" = "-h" ]; then
+    usage
+fi
+
+
+
+
+# QUERY
+K=12
+QUERY_CHR=
+QUERY_START=
+QUERY_END=
+QUERY_SAVE_TMP_FILES=false
+QUERY_OUT_DIR='\.'
+# QUERY_CHR=NZ_CP015023.1
+# QUERY_START=0
+# QUERY_END=5506800
+
+
+
+
+
+
 # query
 BED_FILE=e_coli_ordered_mems.bed
 NUM_ORDER_MEMS=4
