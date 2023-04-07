@@ -10,7 +10,9 @@ QUERY_REGION=
 OUTPUT_DIR='.'
 
 # other
+THREADS=1
 SAVE_INTERMEDIATES='false'
+SORT_OUTPUT_BED='false'
 SHOW_PROGRESS='false'
 PRINT_SUMMARY_STATS='false'
 SANITY_CHECK='false'
@@ -30,8 +32,10 @@ Basic options:
   -n INT               number of other (non-pivot) documents in pangenome
   -b FILE              compressed, indexed bed file of overlap order MEMs
   -r CHR:start-end     target query region
-  -s                   save intermediate files
-  -t                   output summary stats
+  -t INT               number threads [1]
+  -s                   sort bed output
+  -i                   save intermediate files
+  -m                   output summary stats
   -p                   show progress
 
 Output options:
@@ -45,7 +49,7 @@ if [ "$#" -eq 0 ] || [ "$1" = "-h" ]; then
 fi
 
 # parse flags
-while getopts "k:n:b:r:o:stp" OPTION
+while getopts "k:n:b:r:o:t:simp" OPTION
 do
     case $OPTION in
         k )
@@ -63,10 +67,16 @@ do
         o )
             OUTPUT_DIR=$OPTARG
             ;;
-        s )
-            SAVE_INTERMEDIATES='true'
+        t )
+            THREADS=$OPTARG
             ;;
         s )
+            SORT_OUTPUT_BED='true'
+            ;;
+        i )
+            SAVE_INTERMEDIATES='true'
+            ;;
+        m )
             PRINT_SUMMARY_STATS='true'
             ;;
         p )
@@ -83,12 +93,15 @@ OUT_FILE=$OUTPUT_DIR/omem_$K\mer.bed
 OUT_SUMMARY_FILE=$OUTPUT_DIR/omem_$K\mer.stats
 echo -e "STARTING:"
 echo "Output bed file: $OUT_FILE"
-echo "Output summary file: $OUT_SUMMARY_FILE"
+if [ "$SHOW_PROGRESS" = "true" ]; then
+  echo "Output summary file: $OUT_SUMMARY_FILE"
+fi
+
 
 if [[ $QUERY_REGION == *bed ]];      # direct file
 then
   echo -e "Querying all of file: $QUERY_REGION"
-  cp $OUTPUT_DIR/$QUERY_REGION $OUT_FILE
+  ln -s $OUTPUT_DIR/$QUERY_REGION $OUT_FILE
 else                                    # must extract region
   # Parse QUERY_REGION into record, start, end
   QUERY_START_END=$(echo $QUERY_REGION | cut -d':' -f2)
@@ -142,12 +155,12 @@ awk -v k=$K '{
 if [ "$SHOW_PROGRESS" = "true" ]; then
   echo "Merging windows"
 fi
+
 > $OUT_FILE     # clean out file before repopulating
 for MEM_IDX in $(seq 1 $NUM_ORDER_MEMS)
 do
-  awk -v mem_idx=$MEM_IDX '$4==mem_idx' OFS='\t' $OUT_FILE.tmp | \
-    bedtools merge | \
-    sed "s/$/\t$MEM_IDX/" \
+  cat $OUT_FILE.tmp | grep "$MEM_IDX$" | \
+    bedtools merge -c 4 -o first \
     >> $OUT_FILE
 done
 
@@ -157,11 +170,13 @@ if [ "$SAVE_INTERMEDIATES" = true ] ; then
 fi
 rm $OUT_FILE.tmp
 
-# sort the final bed file
-if [ "$SHOW_PROGRESS" = "true" ]; then
-  echo "Sorting final bed"
+# Sort the final bed file
+if [ "$SORT_OUTPUT_BED" = true ] ; then
+  if [ "$SHOW_PROGRESS" = "true" ]; then
+    echo "Sorting final bed"
+  fi
+  sort -k1,1V -k2,2n -o $OUT_FILE $OUT_FILE
 fi
-sort -k1,1V -k2,2n -o $OUT_FILE $OUT_FILE
 
 ################################################################################
 # Output some summary stats
@@ -172,7 +187,7 @@ if [ "$PRINT_SUMMARY_STATS" = true ] ; then
   echo -e "order\tnum_records\tbp_over_window\tper_coverage" > $OUT_SUMMARY_FILE
   for MEM_IDX in $(seq 1 $NUM_ORDER_MEMS)
   do
-    awk -v mem_idx=$MEM_IDX '$4==mem_idx' OFS='\t' $OUT_FILE | \
+    cat $OUT_FILE | grep "$MEM_IDX$" | \
       bedtools coverage -sorted -a query.bed -b "stdin" | \
       awk -v mem_idx=$MEM_IDX {'printf ("%s\t%s\t%s/%s\t%s\n", mem_idx, $4, $5, $6, $7)'} \
       >> $OUT_SUMMARY_FILE
