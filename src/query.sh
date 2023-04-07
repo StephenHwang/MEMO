@@ -12,6 +12,7 @@ OUTPUT_DIR='.'
 # other
 SAVE_INTERMEDIATES='false'
 SHOW_PROGRESS='false'
+PRINT_SUMMARY_STATS='false'
 SANITY_CHECK='false'
 
 
@@ -30,6 +31,7 @@ Basic options:
   -b FILE              compressed, indexed bed file of overlap order MEMs
   -r CHR:start-end     target query region
   -s                   save intermediate files
+  -t                   output summary stats
   -p                   show progress
 
 Output options:
@@ -43,7 +45,7 @@ if [ "$#" -eq 0 ] || [ "$1" = "-h" ]; then
 fi
 
 # parse flags
-while getopts "k:n:b:r:o:sp" OPTION
+while getopts "k:n:b:r:o:stp" OPTION
 do
     case $OPTION in
         k )
@@ -64,6 +66,9 @@ do
         s )
             SAVE_INTERMEDIATES='true'
             ;;
+        s )
+            PRINT_SUMMARY_STATS='true'
+            ;;
         p )
             SHOW_PROGRESS='true'
             ;;
@@ -73,40 +78,52 @@ do
     esac
 done
 
-# Parse QUERY_REGION into record, start, end
-QUERY_START_END=$(echo $QUERY_REGION | cut -d':' -f2)
-QUERY_CHR=$(echo $QUERY_REGION | cut -d':' -f1)
-QUERY_START=$(echo $QUERY_START_END | cut -d'-' -f1)
-QUERY_END=$(echo $QUERY_START_END | cut -d'-' -f2)
-
 # Output files
 OUT_FILE=$OUTPUT_DIR/omem_$K\mer.bed
 OUT_SUMMARY_FILE=$OUTPUT_DIR/omem_$K\mer.stats
-
-################################################################################
-# Start query
-echo -e "STARTING: Querying $QUERY_CHR : $QUERY_START - $QUERY_END"
+echo -e "STARTING:"
 echo "Output bed file: $OUT_FILE"
 echo "Output summary file: $OUT_SUMMARY_FILE"
 
-# Make query bed
-echo -e "$QUERY_CHR\t$QUERY_START\t$QUERY_END" > query.bed     # whole region
+if [[ $QUERY_REGION == *bed ]];      # direct file
+then
+  echo -e "Querying all of file: $QUERY_REGION"
+  cp $OUTPUT_DIR/$QUERY_REGION $OUT_FILE
+else                                    # must extract region
+  # Parse QUERY_REGION into record, start, end
+  QUERY_START_END=$(echo $QUERY_REGION | cut -d':' -f2)
+  QUERY_CHR=$(echo $QUERY_REGION | cut -d':' -f1)
+  QUERY_START=$(echo $QUERY_START_END | cut -d'-' -f1)
+  QUERY_END=$(echo $QUERY_START_END | cut -d'-' -f2)
 
-# extract window
-if [ "$SHOW_PROGRESS" = "true" ]; then
-  echo "Extracting window"
-fi
-tabix $BED_FILE $QUERY_CHR:$QUERY_START-$QUERY_END | \
-  bedtools intersect -sorted -wa -f 1 -a "stdin" -b query.bed \
-  > $OUT_FILE
+  ################################################################################
+  # Start query
+  echo -e "Querying $QUERY_CHR : $QUERY_START - $QUERY_END"
 
-# Save intermediate files
-if [ "$SAVE_INTERMEDIATES" = true ] ; then
-  cp $OUT_FILE $OUTPUT_DIR/order_mem_overlaps.bed
+  # Make query bed
+  echo -e "$QUERY_CHR\t$QUERY_START\t$QUERY_END" > $OUTPUT_DIR/query.bed     # whole region
+
+  # extract window
+  if [ "$SHOW_PROGRESS" = "true" ]; then
+    echo "Extracting window"
+  fi
+  tabix $OUTPUT_DIR/$BED_FILE $QUERY_CHR:$QUERY_START-$QUERY_END | \
+    bedtools intersect -sorted -wa -f 1 -a "stdin" -b $OUTPUT_DIR/query.bed \
+    > $OUT_FILE
+
+  # Save intermediate files
+  if [ "$SAVE_INTERMEDIATES" = true ] ; then
+    cp $OUT_FILE $OUTPUT_DIR/omem_overlaps.bed
+  fi
+
 fi
+
 
 ################################################################################
 # subtract the size of the k-mer from the end and re-assign windows
+if [ "$SHOW_PROGRESS" = "true" ]; then
+  echo "Casting shadows"
+fi
 awk -v k=$K '{
   d=$3-(k-1);
   if (d < $2) {
@@ -118,11 +135,13 @@ awk -v k=$K '{
   }
   }1' OFS='\t' $OUT_FILE \
   > $OUT_FILE.tmp
-# }1' OFS='\t' order_mem_overlaps.bed \    # use pre-extracted region
 
 
 ################################################################################
 # merge the for each
+if [ "$SHOW_PROGRESS" = "true" ]; then
+  echo "Merging windows"
+fi
 > $OUT_FILE     # clean out file before repopulating
 for MEM_IDX in $(seq 1 $NUM_ORDER_MEMS)
 do
@@ -139,18 +158,26 @@ fi
 rm $OUT_FILE.tmp
 
 # sort the final bed file
+if [ "$SHOW_PROGRESS" = "true" ]; then
+  echo "Sorting final bed"
+fi
 sort -k1,1V -k2,2n -o $OUT_FILE $OUT_FILE
 
 ################################################################################
 # Output some summary stats
-echo -e "order\tnum_records\tbp_over_window\tper_coverage" > $OUT_SUMMARY_FILE
-for MEM_IDX in $(seq 1 $NUM_ORDER_MEMS)
-do
-  awk -v mem_idx=$MEM_IDX '$4==mem_idx' OFS='\t' $OUT_FILE | \
-    bedtools coverage -sorted -a query.bed -b "stdin" | \
-    awk -v mem_idx=$MEM_IDX {'printf ("%s\t%s\t%s/%s\t%s\n", mem_idx, $4, $5, $6, $7)'} \
-    >> $OUT_SUMMARY_FILE
-done
+if [ "$PRINT_SUMMARY_STATS" = true ] ; then
+  if [ "$SHOW_PROGRESS" = "true" ]; then
+    echo "Calculating summary stats"
+  fi
+  echo -e "order\tnum_records\tbp_over_window\tper_coverage" > $OUT_SUMMARY_FILE
+  for MEM_IDX in $(seq 1 $NUM_ORDER_MEMS)
+  do
+    awk -v mem_idx=$MEM_IDX '$4==mem_idx' OFS='\t' $OUT_FILE | \
+      bedtools coverage -sorted -a query.bed -b "stdin" | \
+      awk -v mem_idx=$MEM_IDX {'printf ("%s\t%s\t%s/%s\t%s\n", mem_idx, $4, $5, $6, $7)'} \
+      >> $OUT_SUMMARY_FILE
+  done
+fi
 
 ################################################################################
 
