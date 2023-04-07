@@ -100,8 +100,8 @@ fi
 
 if [[ $QUERY_REGION == *bed ]];      # direct file
 then
-  echo -e "Querying all of file: $QUERY_REGION"
-  ln -s $OUTPUT_DIR/$QUERY_REGION $OUT_FILE
+  echo -e "Querying file: $QUERY_REGION"
+  QUERY_BED_FILE=$OUTPUT_DIR/$QUERY_REGION
 else                                    # must extract region
   # Parse QUERY_REGION into record, start, end
   QUERY_START_END=$(echo $QUERY_REGION | cut -d':' -f2)
@@ -123,12 +123,16 @@ else                                    # must extract region
   tabix $OUTPUT_DIR/$BED_FILE $QUERY_CHR:$QUERY_START-$QUERY_END | \
     bedtools intersect -sorted -wa -f 1 -a "stdin" -b $OUTPUT_DIR/query.bed \
     > $OUT_FILE
+  QUERY_BED_FILE=$OUT_FILE
 
   # Save intermediate files
   if [ "$SAVE_INTERMEDIATES" = true ] ; then
+    if [ "$SHOW_PROGRESS" = "true" ]; then
+      echo -e "Saving omem overlaps to: $OUTPUT_DIR/omem_overlaps.bed"
+    fi
+    rm -f $OUTPUT_DIR/omem_overlaps.bed
     cp $OUT_FILE $OUTPUT_DIR/omem_overlaps.bed
   fi
-
 fi
 
 
@@ -146,9 +150,8 @@ awk -v k=$K '{
   else {
     next
   }
-  }1' OFS='\t' $OUT_FILE \
+  }1' OFS='\t' $QUERY_BED_FILE \
   > $OUT_FILE.tmp
-
 
 ################################################################################
 # merge the for each
@@ -156,7 +159,7 @@ if [ "$SHOW_PROGRESS" = "true" ]; then
   echo "Merging windows"
 fi
 
-> $OUT_FILE     # clean out file before repopulating
+> $OUT_FILE     # clean out file before re-populating
 for MEM_IDX in $(seq 1 $NUM_ORDER_MEMS)
 do
   cat $OUT_FILE.tmp | grep "$MEM_IDX$" | \
