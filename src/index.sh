@@ -7,6 +7,7 @@ DAP_FILE=
 INDEX_RECORDS=
 OUTPUT_DIR='.'
 OUTPUT_BEDFILE=
+THREADS=1
 SHOW_PROGRESS='false'
 
 usage() {
@@ -19,6 +20,7 @@ Basic options:
   -f FILE              document list fai file
   -d FILE              full document array
   -r RECORDS           fasta records to query
+  -t INT               number threads [1]
   -p                   show progress
 
 Output options:
@@ -33,7 +35,7 @@ if [ "$#" -eq 0 ] || [ "$1" = "-h" ]; then
 fi
 
 # parse flags
-while getopts "f:d:r:o:b:p" OPTION
+while getopts "f:d:r:o:b:t:p" OPTION
 do
     case $OPTION in
         f )
@@ -50,6 +52,9 @@ do
             ;;
         b )
             OUTPUT_BEDFILE=$OPTARG
+            ;;
+        t )
+            THREADS=$OPTARG
             ;;
         p )
             SHOW_PROGRESS='true'
@@ -78,7 +83,7 @@ if [ "$SHOW_PROGRESS" = "true" ]; then
   echo "Sorting, compressing, and indexing interval file."
 fi
 sort -k1,1V -k2,2n -o $OUTPUT_DIR/$OUTPUT_BEDFILE $OUTPUT_DIR/$OUTPUT_BEDFILE
-bgzip -f $OUTPUT_DIR/$OUTPUT_BEDFILE
+bgzip -f --threads $THREADS $OUTPUT_DIR/$OUTPUT_BEDFILE
 tabix -p bed $OUTPUT_DIR/$OUTPUT_BEDFILE.gz
 
 if [ "$SHOW_PROGRESS" = "true" ]; then
