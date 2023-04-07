@@ -7,20 +7,12 @@ K=12
 BED_FILE=
 NUM_ORDER_MEMS=
 QUERY_REGION=
-
-# output
-OUTPUT_DIR='\.'
+OUTPUT_DIR='.'
 
 # other
 SAVE_INTERMEDIATES='false'
 SHOW_PROGRESS='false'
 SANITY_CHECK='false'
-
-# NUM_ORDER_MEMS=4
-# BED_FILE=e_coli_ordered_mems.bed
-# QUERY_CHR=NZ_CP015023.1
-# QUERY_START=0
-# QUERY_END=5506800
 
 
 usage() {
@@ -34,8 +26,8 @@ Output: bed file of interval position found in order-number other documents in
 
 Basic options:
   -k INT               k-mer size [12]
-  -b FILE              compressed, indexed bed file of overlap order MEMs
   -n INT               number of other (non-pivot) documents in pangenome
+  -b FILE              compressed, indexed bed file of overlap order MEMs
   -r CHR:start-end     target query region
   -s                   save intermediate files
   -p                   show progress
@@ -51,17 +43,17 @@ if [ "$#" -eq 0 ] || [ "$1" = "-h" ]; then
 fi
 
 # parse flags
-while getopts "k:b:n:r:o:sp" OPTION
+while getopts "k:n:b:r:o:sp" OPTION
 do
     case $OPTION in
         k )
             K=$OPTARG
             ;;
-        b )
-            BED_FILE=$OPTARG
-            ;;
         n )
             NUM_ORDER_MEMS=$OPTARG
+            ;;
+        b )
+            BED_FILE=$OPTARG
             ;;
         r )
             QUERY_REGION=$OPTARG
@@ -104,7 +96,7 @@ echo -e "$QUERY_CHR\t$QUERY_START\t$QUERY_END" > query.bed     # whole region
 if [ "$SHOW_PROGRESS" = "true" ]; then
   echo "Extracting window"
 fi
-tabix $BED_FILE.gz $QUERY_CHR:$QUERY_START-$QUERY_END | \
+tabix $BED_FILE $QUERY_CHR:$QUERY_START-$QUERY_END | \
   bedtools intersect -sorted -wa -f 1 -a "stdin" -b query.bed \
   > $OUT_FILE
 

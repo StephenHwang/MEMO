@@ -2,15 +2,10 @@
 
 set -euo pipefail
 
-# OUTPUT_BEDFILE=e_coli_ordered_mems.bed
-# FAI_FILE=input.fna.fai
-# DAP_FILE=full_dap.txt
-# INDEX_RECORDS="NZ_CP015023.1 NZ_CP015022.1"
-
 FAI_FILE=
 DAP_FILE=
 INDEX_RECORDS=
-OUTPUT_DIR='/.'
+OUTPUT_DIR='.'
 OUTPUT_BEDFILE=
 SHOW_PROGRESS='false'
 
@@ -27,7 +22,7 @@ Basic options:
   -p                   show progress
 
 Output options:
-  -o FILE              output directory ['/.']
+  -o FILE              output directory ['.']
   -b FILE              output file name
 "
 exit 0
@@ -38,10 +33,10 @@ if [ "$#" -eq 0 ] || [ "$1" = "-h" ]; then
 fi
 
 # parse flags
-while getopts "l:d:r:o:b:p" OPTION
+while getopts "f:d:r:o:b:p" OPTION
 do
     case $OPTION in
-        l )
+        f )
             FAI_FILE=$OPTARG
             ;;
         d )
@@ -69,13 +64,14 @@ done
 if [ "$SHOW_PROGRESS" = "true" ]; then
   echo "Converting document array profile to overlap order MEM intervals."
 fi
+
 dap_to_ms_bed.py \
   --mems \
   --overlap \
   --fai $FAI_FILE \
   --dap $DAP_FILE \
   --query $INDEX_RECORDS \
-  > $OUT_DIR/$OUTPUT_BEDFILE
+  > $OUTPUT_DIR/$OUTPUT_BEDFILE
 
 # Sort, compress, and index
 if [ "$SHOW_PROGRESS" = "true" ]; then
