@@ -159,13 +159,12 @@ if [ "$SHOW_PROGRESS" = "true" ]; then
   echo "Merging windows"
 fi
 
-> $OUT_FILE     # clean out file before re-populating
-for MEM_IDX in $(seq 1 $NUM_ORDER_MEMS)
-do
-  cat $OUT_FILE.tmp | grep "$MEM_IDX$" | \
-    bedtools merge -c 4 -o first \
-    >> $OUT_FILE
-done
+# parallel version
+> $OUT_FILE     # rm file before re-populating
+parallel -j $NUM_ORDER_MEMS \
+  "grep {}$ $OUT_FILE.tmp | bedtools merge -c 4 -o first" \
+  ::: $(seq 1 $NUM_ORDER_MEMS) \
+  >> $OUT_FILE
 
 # Save intermediate files
 if [ "$SAVE_INTERMEDIATES" = true ] ; then
