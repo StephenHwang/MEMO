@@ -141,16 +141,23 @@ fi
 if [ "$SHOW_PROGRESS" = "true" ]; then
   echo "Casting shadows"
 fi
-awk -v k=$K '{
-  d=$3-(k-1);
-  if (d < $2) {
-    $3=$2;
-    $2=d*(d>0)
-  }
-  else {
-    next
-  }
-  }1' OFS='\t' $QUERY_BED_FILE \
+
+cast_awk_shadows() {
+  awk -v k=$1 '{
+    d=$3-(k-1);
+    if (d < $2) {
+      $3=$2;
+      $2=d*(d>0)
+    }
+    else {
+      next
+    }
+    }1' OFS='\t'
+}
+export -f cast_awk_shadows
+parallel -j $NUM_ORDER_MEMS \
+  "grep {}$ $QUERY_BED_FILE | cast_awk_shadows $K " \
+  ::: $(seq 1 $NUM_ORDER_MEMS) \
   > $OUT_FILE.tmp
 
 ################################################################################
@@ -158,8 +165,6 @@ awk -v k=$K '{
 if [ "$SHOW_PROGRESS" = "true" ]; then
   echo "Merging windows"
 fi
-
-# parallel version
 > $OUT_FILE     # rm file before re-populating
 parallel -j $NUM_ORDER_MEMS \
   "grep {}$ $OUT_FILE.tmp | bedtools merge -c 4 -o first" \
