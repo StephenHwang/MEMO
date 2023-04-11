@@ -10,7 +10,6 @@ QUERY_REGION=
 OUTPUT_DIR='.'
 
 # other
-THREADS=1
 SAVE_INTERMEDIATES='false'
 SORT_OUTPUT_BED='false'
 SHOW_PROGRESS='false'
@@ -32,7 +31,6 @@ Basic options:
   -n INT               number of other (non-pivot) documents in pangenome
   -b FILE              compressed, indexed bed file of overlap order MEMs
   -r CHR:start-end     target query region
-  -t INT               number threads [1]
   -s                   sort bed output
   -i                   save intermediate files
   -m                   output summary stats
@@ -66,9 +64,6 @@ do
             ;;
         o )
             OUTPUT_DIR=$OPTARG
-            ;;
-        t )
-            THREADS=$OPTARG
             ;;
         s )
             SORT_OUTPUT_BED='true'
@@ -167,7 +162,8 @@ if [ "$SHOW_PROGRESS" = "true" ]; then
 fi
 > $OUT_FILE     # rm file before re-populating
 parallel -j $NUM_ORDER_MEMS \
-  "grep {}$ $OUT_FILE.tmp | bedtools merge -c 4 -o first" \
+  "grep {}$ $OUT_FILE.tmp |
+  bedtools merge -c 4 -o first" \
   ::: $(seq 1 $NUM_ORDER_MEMS) \
   >> $OUT_FILE
 
