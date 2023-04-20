@@ -1,9 +1,11 @@
 /*
  * pipeline input parameters
  */
-params.documents = "/home/stephen/Documents/projects/langmead_lab/omem/data/bacteria_pangeome_fasta/bacteria_pangenome_paths.txt"
-params.doc_pfp = "/home/stephen/Documents/projects/langmead_lab/docprofiles/build/pfp_doc64"
+params.documents = "/scratch4/mschatz1/sjhwang/data/bacteria_5/paths/bacteria_pangenome_paths_with_annot.txt"
+params.doc_idx = 1
+params.doc_pfp = "/scratch4/mschatz1/sjhwang/src/docprofiles/build_printout/pfp_doc64"
 params.outdir = "results"
+params.src = "../src/"
 
 /*
  * pipeline log
@@ -18,81 +20,30 @@ log.info """\
 
 
 /*
- * Run doc_pfp to extract doc_pfp
- *   TODO: has to use the printout branch of docprofiles
+ * Run doc_pfp to extract document array profile.
  */
 process EXTRACT_DAP {
   label 'extract_dap'
   debug true
 
   input:
+  path doc_pfp
   path documents
-  path doc_pivot_id
-
-  output:
-  path 'dap'
+  val doc_pivot_id
 
   script:
   """
-  params.doc_pfp \
+  ./$doc_pfp build \
     -f $documents \
-    -o 'dap' \
+    -o './dap' \
     -e $doc_pivot_id
   """
 }
 
-
-/*
- * define the `index` process 
- * 
- */
-process INDEX {
-  input:
-  path tmp
-
-  output:
-  path tmp
-
-  script:
-  """
-  ./omem index \
-    -f ../data/example_dap/input.fna.fai \
-    -d ../data/example_dap/full_dap.txt \
-    -r "NZ_CP015023.1 NZ_CP015022.1" \
-    -o ../data/example_dap \
-    -b omem.bed \
-    -p
-  """
-}
-
-
-/*
- * define the `query` process
- * 
- */
-process QUERY {
-  input:
-  path tmp
-
-  output:
-  path tmp
-
-  script:
-  """
-  ./omem query \
-    -k 12 \
-    -n 4 \
-    -o ../data/example_dap \
-    -b omem.bed.gz \
-    -r NZ_CP015023.1:0-5506800 \
-    -i \
-    -p
-  """
-}
-
-
 workflow {
-  TODO
+  dap_ch = EXTRACT_DAP(params.doc_pfp,
+                       params.documents,
+                       params.doc_idx)
 }
 
 workflow.onComplete {
