@@ -7,6 +7,12 @@ params.doc_pfp = "/scratch4/mschatz1/sjhwang/src/docprofiles/build_printout/pfp_
 params.outdir = "results"
 params.src = "../src/"
 
+params.fna_fai = "../data/example_dap/input.fna.fai"
+params.dap_txt = "../data/example_dap/full_dap.txt"
+params.records = "NZ_CP015023.1 NZ_CP015022.1" 
+params.out_bed_name = "example_dap"
+
+
 /*
  * pipeline log
  */
@@ -40,10 +46,70 @@ process EXTRACT_DAP {
   """
 }
 
+
+/*
+ * Define the `index` process 
+ */
+process INDEX {
+  input:
+  path fna_fai
+  path dap_txt
+  path records
+  path out_dir 
+  path out_bed_name
+  path src
+
+  script:
+  """
+  $src/omem index \
+    -f $fna_fai \
+    -d $dap_txt \
+    -r $records \
+    -o $out_dir \
+    -b $out_bed_name \
+    -p
+  """
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 workflow {
   dap_ch = EXTRACT_DAP(params.doc_pfp,
                        params.documents,
                        params.doc_idx)
+
+  index_ch = INDEX(params.doc_pfp,
+                   params.documents,
+                   params.doc_idx,
+                   params.doc_idx,
+                   params.doc_idx,
+                   params.doc_idx,
+
+  path fna_fai
+  path dap_txt
+  path records
+  path out_dir 
+  path out_bed_name
+  path src
+
+
+
+  // flow the channels
+
 }
 
 workflow.onComplete {
