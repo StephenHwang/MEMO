@@ -99,8 +99,8 @@ then
   QUERY_BED_FILE=$OUTPUT_DIR/$QUERY_REGION
 else                                    # must extract region
   # Parse QUERY_REGION into record, start, end
-  QUERY_START_END=$(echo $QUERY_REGION | cut -d':' -f2)
   QUERY_CHR=$(echo $QUERY_REGION | cut -d':' -f1)
+  QUERY_START_END=$(echo $QUERY_REGION | cut -d':' -f2)
   QUERY_START=$(echo $QUERY_START_END | cut -d'-' -f1)
   QUERY_END=$(echo $QUERY_START_END | cut -d'-' -f2)
 
