@@ -194,7 +194,7 @@ process QUERY {
 
   script:
   """
-  $omem_query \
+  ./$omem_query \
     -k $K \
     -n $num_docs \
     -r $region_bed  \
@@ -230,15 +230,14 @@ workflow {
                                      index_ch.bed_gz_tbi,
                                      params.region)
 
-
-  // query_ch = QUERY(params.omem_query,
-                   // params.K,
-                   // params.num_docs,
-                   // extract_region_ch)
+  query_ch = QUERY(params.omem_query,
+                   params.K,
+                   params.num_docs,
+                   extract_region_ch)
 
 }
 
 
 workflow.onComplete {
-    log.info ( workflow.success ? "\nDONE!" : "Oops .. something went wrong" )
+    log.info ( workflow.success ? "\nWORKFLOW SUCCEEDED!" : "Oops .. something went wrong" )
 }
