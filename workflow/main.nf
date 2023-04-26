@@ -3,14 +3,21 @@
  */
 
 // paths to software
-params.omem = "$projectDir/../src/omem"
+// params.omem =  "/home/stephen/Documents/projects/langmead_lab/omem/src/omem"
+params.dap_to_ms_py =  "/home/stephen/Documents/projects/langmead_lab/omem/src/dap_to_ms_bed.py"
+params.omem_index =  "/home/stephen/Documents/projects/langmead_lab/omem/src/index.sh"
+params.omem_query =  "/home/stephen/Documents/projects/langmead_lab/omem/src/query.sh"
 params.doc_pfp = "/home/stephen/Documents/projects/langmead_lab/docprofiles/build_printout/pfp_doc64"
 
+// example because currently skipping
+params.example_full_dap = "/home/stephen/Documents/projects/langmead_lab/analysis/order_mems/bacteria_5/e_coli_pivot/full_dap.txt"
+params.example_fna =      "/home/stephen/Documents/projects/langmead_lab/analysis/order_mems/bacteria_5/e_coli_pivot/input.fna"
+
+
 // asdf
+params.document_listing = "/home/stephen/Documents/projects/langmead_lab/omem/data/bacteria_pangeome_fasta/bacteria_pangenome_paths_with_annot.txt"
 params.out_dir = "results"
 params.out_prefix = "e_coli"
-
-params.document_listing = "/scratch4/mschatz1/sjhwang/data/bacteria_5/paths/bacteria_pangenome_paths_with_annot.txt"
 
 // parameters
 params.pivot_idx = 1
@@ -39,7 +46,6 @@ log.info """\
 
 /*
  * Run doc_pfp to extract document array profile.
- */
 process EXTRACT_DAP {
   label 'extract_dap'
   debug true
@@ -62,6 +68,31 @@ process EXTRACT_DAP {
     -e $doc_pivot_id
   """
 }
+ */
+
+/*
+ * Run doc_pfp to extract document array profile.
+ */
+process EXTRACT_DAP {
+  label 'extract_dap'
+  debug true
+
+  input:
+  path doc_pfp
+  path example_full_dap
+  path example_fna
+  val out_prefix
+
+  output:
+  path "full_dap.txt", emit: dap
+  path "${out_prefix}.fna", emit: fna
+
+  script:
+  """
+  cp $example_full_dap full_dap_cp.txt
+  cp $example_fna ${out_prefix}.fna
+  """
+}
 
 
 process INDEX_FNA {
@@ -81,7 +112,6 @@ process INDEX_FNA {
 }
 
 
-
 /*
  * Define the `index` process
  */
@@ -90,24 +120,24 @@ process INDEX {
   debug true
 
   input:
-  path omem
+  path omem_index
+  path dap_to_ms_py
   path fna_fai
   path dap_txt
   val records
   val num_docs
-  path out_prefix
+  val out_prefix
 
   output:
-  path "${out_prefix}.gz"
+  path "${out_prefix}.bed.gz"
 
   script:
   """
-  $omem index \
+  ./$omem_index \
+    -b ${out_prefix}.bed \
     -f $fna_fai \
     -d $dap_txt \
     -r $records \
-    -b $out_bed_name \
-    -t $num_docs \
     -p
   """
 }
@@ -127,20 +157,18 @@ process EXTRACT_REGION {
   output:
   path "region.bed"
 
-  script:
-  parse
-
-  """
-  QUERY_CHR=$(echo $region | cut -d':' -f1)
-  QUERY_START_END=$(echo $region | cut -d':' -f2)
-  QUERY_START=$(echo $QUERY_START_END | cut -d'-' -f1)
-  QUERY_END=$(echo $QUERY_START_END | cut -d'-' -f2)
+  shell:
+  '''
+  QUERY_CHR="$(echo !{region} | cut -d':' -f1)"
+  QUERY_START_END="$(echo !{region} | cut -d':' -f2)"
+  QUERY_START="$(echo $QUERY_START_END | cut -d'-' -f1)"
+  QUERY_END="$(echo $QUERY_START_END | cut -d'-' -f2)"
 
   echo -e "$QUERY_CHR\t$QUERY_START\t$QUERY_END" > query.bed
-  tabix $input_bed_gz $region | \
+  tabix !{input_bed_gz} !{region} | \
     bedtools intersect -sorted -wa -f 1 -a 'stdin' -b query.bed \
     > region.bed
-  """
+  '''
 }
 
 
@@ -153,7 +181,7 @@ process QUERY {
   publishDir params.out_dir, mode:'copy'
 
   input:
-  path omem
+  path omem_query
   val K
   val num_docs
   path region_bed
@@ -163,7 +191,7 @@ process QUERY {
 
   script:
   """
-  $omem query \
+  $omem_query \
     -k $K \
     -n $num_docs \
     -r $region_bed  \
@@ -173,29 +201,35 @@ process QUERY {
 
 /*
  * Basic query workflow for casting `k-mers` in `chr:start-end`.
+  // dap_ch = EXTRACT_DAP(params.doc_pfp,
+                       // params.document_listing,
+                       // params.out_prefix,
+                       // params.pivot_idx)
  */
 workflow {
+
   dap_ch = EXTRACT_DAP(params.doc_pfp,
-                       params.document_listing,
-                       params.out_prefix,
-                       params.pivot_idx)
+                       params.example_full_dap,
+                       params.example_fna,
+                       params.out_prefix)
 
-  index_fna_ch = INDEX_FNA(dap_ch.out.fna)
+  index_fna_ch = INDEX_FNA(dap_ch.fna)
 
-  index_ch = INDEX(params.omem,
+  index_ch = INDEX(params.omem_index,
+                   params.dap_to_ms_py,
                    index_fna_ch,
-                   dap_ch.out.dap,
+                   dap_ch.dap,
                    params.records,
                    params.num_docs,
                    params.out_prefix)
 
-  extract_region_ch = EXTRACT_REGION(index_ch,
-                                     params.region)
+  // extract_region_ch = EXTRACT_REGION(index_ch,
+                                     // params.region)
 
-  query_ch = QUERY(params.omem,
-                   params.K,
-                   params.num_docs,
-                   extract_region_ch)
+  // query_ch = QUERY(params.omem_query,
+                   // params.K,
+                   // params.num_docs,
+                   // extract_region_ch)
 
 }
 

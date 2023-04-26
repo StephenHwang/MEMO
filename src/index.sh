@@ -70,7 +70,7 @@ if [ "$SHOW_PROGRESS" = "true" ]; then
   echo "Converting document array profile to overlap order MEM intervals."
 fi
 
-dap_to_ms_bed.py \
+./dap_to_ms_bed.py \
   --mems \
   --overlap \
   --fai $FAI_FILE \

@@ -1,2 +1,5 @@
 /scratch
 \.ipynb_checkpoints
+**/.nextflow.log*
+**/.nextflow
+workflow/results
