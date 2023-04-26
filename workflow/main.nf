@@ -46,6 +46,7 @@ log.info """\
 
 /*
  * Run doc_pfp to extract document array profile.
+ */
 process EXTRACT_DAP {
   label 'extract_dap'
   debug true
@@ -68,12 +69,11 @@ process EXTRACT_DAP {
     -e $doc_pivot_id
   """
 }
- */
 
 /*
  * Run doc_pfp to extract document array profile.
  */
-process EXTRACT_DAP {
+process EXTRACT_DAP_TMP {
   label 'extract_dap'
   debug true
 
@@ -129,7 +129,8 @@ process INDEX {
   val out_prefix
 
   output:
-  path "${out_prefix}.bed.gz"
+  path "${out_prefix}.bed.gz", emit: bed_gz
+  path "${out_prefix}.bed.gz.tbi", emit: bed_gz_tbi
 
   script:
   """
@@ -138,6 +139,7 @@ process INDEX {
     -f $fna_fai \
     -d $dap_txt \
     -r $records \
+    -t $num_docs \
     -p
   """
 }
@@ -152,6 +154,7 @@ process EXTRACT_REGION {
 
   input:
   path input_bed_gz
+  path input_bed_gz_tbi
   val region
 
   output:
@@ -201,14 +204,14 @@ process QUERY {
 
 /*
  * Basic query workflow for casting `k-mers` in `chr:start-end`.
+ */
+workflow {
+
   // dap_ch = EXTRACT_DAP(params.doc_pfp,
                        // params.document_listing,
                        // params.out_prefix,
                        // params.pivot_idx)
- */
-workflow {
-
-  dap_ch = EXTRACT_DAP(params.doc_pfp,
+  dap_ch = EXTRACT_DAP_TMP(params.doc_pfp,
                        params.example_full_dap,
                        params.example_fna,
                        params.out_prefix)
@@ -223,8 +226,10 @@ workflow {
                    params.num_docs,
                    params.out_prefix)
 
-  // extract_region_ch = EXTRACT_REGION(index_ch,
-                                     // params.region)
+  extract_region_ch = EXTRACT_REGION(index_ch.bed_gz,
+                                     index_ch.bed_gz_tbi,
+                                     params.region)
+
 
   // query_ch = QUERY(params.omem_query,
                    // params.K,
