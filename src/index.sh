@@ -8,24 +8,20 @@ INDEX_RECORDS=
 OUTPUT_DIR='.'
 OUTPUT_BEDFILE=
 THREADS=1
-SHOW_PROGRESS='false'
 
 usage() {
 echo \
-"Usage: ./omem index [options]
-
-Create a compressed and indexed overlap MEM interval bed file from a full document array.
+"
+omem index - index overlap order MEMs from a document array profile
+Usage: omem index [options]
 
 Basic options:
-  -f FILE              document list fai file
-  -d FILE              full document array
-  -r RECORDS           fasta records to query
-  -t INT               number threads [1]
-  -p                   show progress
-
-Output options:
-  -o FILE              output directory ['.']
-  -b FILE              output file name
+  -f [FILE]              document list fai file
+  -d [FILE]              full document array
+  -r [RECORDS]           fasta records to query
+  -o [FILE]              output directory ['.']
+  -b [FILE]              output file prefix
+  -t [INT]               number threads [1]
 "
 exit 0
 }
@@ -35,7 +31,7 @@ if [ "$#" -eq 0 ] || [ "$1" = "-h" ]; then
 fi
 
 # parse flags
-while getopts "f:d:r:o:b:t:p" OPTION
+while getopts "f:d:r:o:b:t:" OPTION
 do
     case $OPTION in
         f )
@@ -51,13 +47,10 @@ do
             OUTPUT_DIR=$OPTARG
             ;;
         b )
-            OUTPUT_BEDFILE=$OPTARG
+            OUTPUT_BEDFILE=$OPTARG.bed
             ;;
         t )
             THREADS=$OPTARG
-            ;;
-        p )
-            SHOW_PROGRESS='true'
             ;;
         * )
             usage
@@ -66,10 +59,7 @@ do
 done
 
 # Extract overlap MEM intervals
-if [ "$SHOW_PROGRESS" = "true" ]; then
-  echo "Converting document array profile to overlap order MEM intervals."
-fi
-
+echo -e "\nConverting document array profile to overlap order MEM intervals."
 ./dap_to_ms_bed.py \
   --mems \
   --overlap \
@@ -79,13 +69,9 @@ fi
   > $OUTPUT_DIR/$OUTPUT_BEDFILE
 
 # Sort, compress, and index
-if [ "$SHOW_PROGRESS" = "true" ]; then
-  echo "Sorting, compressing, and indexing interval file."
-fi
+echo "Sorting, compressing, and indexing interval file."
 sort -k1,1V -k2,2n -o $OUTPUT_DIR/$OUTPUT_BEDFILE $OUTPUT_DIR/$OUTPUT_BEDFILE
 bgzip -f --threads $THREADS $OUTPUT_DIR/$OUTPUT_BEDFILE
 tabix -p bed $OUTPUT_DIR/$OUTPUT_BEDFILE.gz
 
-if [ "$SHOW_PROGRESS" = "true" ]; then
-  echo "Done indexing!"
-fi
+echo -e "Output index file: $OUTPUT_DIR/$OUTPUT_BEDFILE.gz"

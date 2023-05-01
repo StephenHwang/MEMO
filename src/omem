@@ -3,15 +3,14 @@ set -euo pipefail
 
 usage() {
 echo \
-"omem: order mem toolkit
-
-Usage: ./omem <commmand> [options]
+"
+omem: order mem toolkit
+Usage: omem <commmand> [options]
 
 Main omem commands:
-  -- index         overlap order MEM index construction from a full document array
-  -- query         query overlap order MEMs of a specified region
-
-For more commands, type omem -h
+  -- index         index overlap order MEMs from a document array profile
+  -- extract       extract region chr:start-end from overlap order MEM index
+  -- query         query k-mers on order MEMs of input bed file region
 "
 exit 0
 }
@@ -29,6 +28,11 @@ case $SUBCOMMAND in
   # Index region
   index)
     ./index.sh "$@"
+    ;;
+
+  # Extract region
+  extract)
+    ./extract.sh "$@"
     ;;
 
   # Query region
