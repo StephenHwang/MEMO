@@ -42,25 +42,38 @@ workflow index {
                      index_fna_ch,
                      dap_ch.dap,
                      params.records,
-                     params.num_docs,
-                     params.out_prefix)
+                     params.out_prefix,
+                     params.num_docs)
   emit:
     index_ch.bed_gz
     index_ch.bed_gz_tbi
 }
 
+
 /*
- * Workflow for extracting and casting shadows for specified region of
- *   an order MEM index file.
+ * Workflow for extracting region from overlap order MEM index
  */
-workflow query {
+workflow extract {
   take:
     bed_gz
     bed_gz_tbi
   main:
-    extract_region_ch = EXTRACT_REGION(bed_gz,
+    extract_region_ch = EXTRACT_REGION(params.omem_extract,
+                                       bed_gz,
                                        bed_gz_tbi,
                                        params.region)
+  emit:
+    extract_region_ch
+}
+
+
+/*
+ * Workflow for casting shadows over overlap order MEM bed file
+ */
+workflow query {
+  take:
+    extract_region_ch
+  main:
     query_ch = QUERY(params.omem_query,
                      params.K,
                      params.num_docs,
@@ -74,14 +87,16 @@ workflow query {
  */
 workflow query_region_with_k {
   index_ch = index()
-  query(index_ch)
+  extract_ch = extract(index_ch)
+  query(extract_ch)
 }
+
 
 /*
  * Workflow for finding k* for a region
  */
 workflow find_k_star {
-  // running multiple cast w K and then normalize arg max 
+  // running multiple cast w K and then normalize arg max
   // might need a python script
   // output is k* and omem-delta plot
 }
@@ -99,6 +114,7 @@ workflow panagram_plot {
 workflow {
   query_region_with_k()
   find_k_star()
+  workflow panagram_plot()
 }
 
 workflow.onComplete {

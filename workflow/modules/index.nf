@@ -74,6 +74,8 @@ process INDEX_FNA {
 
 /*
  * Define the `index` process
+ *
+ * Note: odd bug where for index.sh input -b must be the first parameter
  */
 process INDEX {
   label 'index_records'
@@ -85,8 +87,8 @@ process INDEX {
   path fna_fai
   path dap_txt
   val records
-  val num_docs
   val out_prefix
+  val num_docs
 
   output:
   path "${out_prefix}.bed.gz", emit: bed_gz
@@ -95,12 +97,11 @@ process INDEX {
   script:
   """
   ./$omem_index \
-    -b ${out_prefix}.bed \
+    -b ${out_prefix} \
     -f $fna_fai \
     -d $dap_txt \
     -r $records \
-    -t $num_docs \
-    -p
+    -t $num_docs
   """
 }
 
