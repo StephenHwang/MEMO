@@ -4,6 +4,7 @@
 include {EXTRACT_DAP_TMP}               from './modules/index.nf'
 include {EXTRACT_DAP; INDEX_FNA; INDEX} from './modules/index.nf'
 include {EXTRACT_REGION; QUERY}         from './modules/query.nf'
+include {SUM_XS_PER_K}                  from './modules/analyze.nf'
 
 // Pipeline log
 log.info """\
@@ -17,6 +18,8 @@ log.info """\
   Index records           : ${params.records}
   Query region            : ${params.region}
   K                       : ${params.K}
+  K low                   : ${params.K_low}
+  K high                  : ${params.K_high}
   """
   .stripIndent()
 
@@ -100,18 +103,25 @@ workflow vary_k {
   extract_ch = extract(index_ch)
 
   // vary K
-  k_channel = Channel.of(10..25)
+  k_channel = Channel.of(params.K_low..params.K_high)
   query_ch = QUERY(params.omem_query,
                    k_channel,
                    params.num_docs,
                    extract_ch)
 
-  // TODO: aggregate and summarize
+  // sum Xs
+  sum_Xs_ch = SUM_XS_PER_K(query_ch,
+                         params.K_low,
+                         params.K_high,
+                         params.num_docs)
+
+  sum_Xs_ch.view()
 }
 
 
 workflow find_k_star {
 }
+
 
 workflow panagram_plot {
 }
@@ -127,6 +137,7 @@ workflow {
   find_k_star()
   panagram_plot()
 }
+
 
 workflow.onComplete {
     log.info ( workflow.success ? "\nWORKFLOW SUCCEEDED!" : "Oops .. something went wrong" )
