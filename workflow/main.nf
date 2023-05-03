@@ -95,16 +95,26 @@ workflow query_region_with_k {
 /*
  * Workflow for finding k* for a region
  */
-workflow find_k_star {
-  // running multiple cast w K and then normalize arg max
-  // might need a python script
-  // output is k* and omem-delta plot
+workflow vary_k {
+  index_ch = index()
+  extract_ch = extract(index_ch)
+
+  // vary K
+  k_channel = Channel.of(10..25)
+  query_ch = QUERY(params.omem_query,
+                   k_channel,
+                   params.num_docs,
+                   extract_ch)
+
+  // TODO: aggregate and summarize
 }
 
+
+workflow find_k_star {
+}
 
 workflow panagram_plot {
 }
-
 
 
 /*
@@ -113,8 +123,9 @@ workflow panagram_plot {
  */
 workflow {
   query_region_with_k()
+  vary_k()
   find_k_star()
-  workflow panagram_plot()
+  panagram_plot()
 }
 
 workflow.onComplete {

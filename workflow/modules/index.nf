@@ -18,14 +18,14 @@ process EXTRACT_DAP {
   val doc_pivot_id
 
   output:
-  path "full_dap.txt", emit: dap
+  path "${out_prefix}.fna.extract_dap.txt", emit: dap
   path "${out_prefix}.fna", emit: fna
 
   script:
   """
   ./$doc_pfp build -r \
     -f $document_listing \
-    -o $out_prefix \
+    -o ./$out_prefix \
     -e $doc_pivot_id
   """
 }
