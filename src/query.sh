@@ -75,7 +75,7 @@ export -f cast_awk_shadows
 
 # cast shadows parallelized across each order
 parallel -j $NUM_ORDER_MEMS \
-  "grep {}$ $QUERY_REGION_BED | cast_awk_shadows $K " \
+  "grep -w {}$ $QUERY_REGION_BED | cast_awk_shadows $K " \
   ::: $(seq 1 $NUM_ORDER_MEMS) \
   > $OUT_FILE.tmp
 
@@ -83,7 +83,7 @@ parallel -j $NUM_ORDER_MEMS \
 echo "Merging windows"
 > $OUT_FILE     # rm file before re-populating
 parallel -j $NUM_ORDER_MEMS \
-  "grep {}$ $OUT_FILE.tmp |
+  "grep -w {}$ $OUT_FILE.tmp |
   bedtools merge -c 4 -o first" \
   ::: $(seq 1 $NUM_ORDER_MEMS) \
   >> $OUT_FILE

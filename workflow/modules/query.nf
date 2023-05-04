@@ -1,5 +1,5 @@
 /*
- * pipeline input parameters
+ * Module for querying (casting shadows) on order-MEM overlap index
  */
 
 
@@ -43,7 +43,8 @@ process QUERY {
   path region_bed
 
   output:
-  path "omem_${K}mer.bed"
+  // path "omem_${K}mer.bed"
+  path "omem_*mer.bed"
 
   script:
   """

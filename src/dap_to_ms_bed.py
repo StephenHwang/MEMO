@@ -6,7 +6,7 @@
 # Date: Mar 12, 2023
 #
 # Run:
-#   dap_to_ms_bed.py --mems --fai input.fna.fai --dap full_dap.txt --query NZ_CP015023.1 NZ_CP015022.1 > file.out
+#   ./dap_to_ms_bed.py --mems --fai input.fna.fai --dap full_dap.txt --query NZ_CP015023.1 NZ_CP015022.1 > file.out
 #
 # Example data:
 #   /home/stephen/Documents/projects/langmead_lab/analysis/order_mems/bacteria_5/e_coli_pivot/input.fna.fai

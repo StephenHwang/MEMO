@@ -86,7 +86,7 @@ workflow query {
 }
 
 /*
- * Workflow for indexing and finding k-shadows in region `chr:start-end`.
+ * Workflow for indexing and finding k-shadows in region `chr:start-end`
  */
 workflow query_region_with_k {
   index_ch = index()
@@ -96,7 +96,7 @@ workflow query_region_with_k {
 
 
 /*
- * Workflow for finding k* for a region
+ * Workflow for varying casted K in region `chr:start-end`
  */
 workflow vary_k {
   index_ch = index()
@@ -110,12 +110,10 @@ workflow vary_k {
                    extract_ch)
 
   // sum Xs
-  sum_Xs_ch = SUM_XS_PER_K(query_ch,
+  sum_Xs_ch = SUM_XS_PER_K(query_ch.collect(),
                          params.K_low,
                          params.K_high,
                          params.num_docs)
-
-  sum_Xs_ch.view()
 }
 
 
@@ -129,7 +127,8 @@ workflow panagram_plot {
 
 /*
  * run:
- *   nextflow run main.nf -process.echo -entry query_region_with_k
+ *   nextflow run main.nf -process.echo -entry <workflow>
+ *    ie. query_region_with_k
  */
 workflow {
   query_region_with_k()

@@ -1,7 +1,6 @@
 /*
- * pipeline input parameters
+ * Module for creating order-MEM overlap index
  */
-
 
 
 /*
