@@ -4,7 +4,7 @@
 include {EXTRACT_DAP_TMP}               from './modules/index.nf'
 include {EXTRACT_DAP; INDEX_FNA; INDEX} from './modules/index.nf'
 include {EXTRACT_REGION; QUERY}         from './modules/query.nf'
-include {SUM_XS_PER_K}                  from './modules/analyze.nf'
+include {SUM_XS_PER_K; FIND_K_STAR}     from './modules/analyze.nf'
 
 // Pipeline log
 log.info """\
@@ -31,14 +31,14 @@ log.info """\
  */
 workflow index {
   main:
-    // dap_ch = EXTRACT_DAP(params.doc_pfp,
-                         // params.document_listing,
-                         // params.out_prefix,
-                         // params.pivot_idx)
-    dap_ch = EXTRACT_DAP_TMP(params.doc_pfp,
-                         params.example_full_dap,
-                         params.example_fna,
-                         params.out_prefix)
+    dap_ch = EXTRACT_DAP(params.doc_pfp,
+                         params.document_listing,
+                         params.out_prefix,
+                         params.pivot_idx)
+    // dap_ch = EXTRACT_DAP_TMP(params.doc_pfp,
+                         // params.example_full_dap,
+                         // params.example_fna,
+                         // params.out_prefix)
     index_fna_ch = INDEX_FNA(dap_ch.fna)
     index_ch = INDEX(params.omem_index,
                      params.dap_to_ms_py,
@@ -99,26 +99,39 @@ workflow query_region_with_k {
  * Workflow for varying casted K in region `chr:start-end`
  */
 workflow vary_k {
-  index_ch = index()
-  extract_ch = extract(index_ch)
+  main:
+    index_ch = index()
+    extract_ch = extract(index_ch)
 
-  // vary K
-  k_channel = Channel.of(params.K_low..params.K_high)
-  query_ch = QUERY(params.omem_query,
-                   k_channel,
-                   params.num_docs,
-                   extract_ch)
+    // vary K
+    k_channel = Channel.of(params.K_low..params.K_high)
+    query_ch = QUERY(params.omem_query,
+                     k_channel,
+                     params.num_docs,
+                     extract_ch)
 
-  // sum Xs
-  sum_Xs_ch = SUM_XS_PER_K(query_ch.collect(),
-                         params.K_low,
-                         params.K_high,
-                         params.num_docs)
+    // sum Xs
+    sum_Xs_ch = SUM_XS_PER_K(query_ch.collect(),
+                           params.K_low,
+                           params.K_high,
+                           params.num_docs)
+
+  emit:
+    sum_Xs_ch
 }
+
 
 
 workflow find_k_star {
+  vary_k_ch = vary_k()
+  find_k_val = FIND_K_STAR(params.find_k_star_py,
+                           vary_k_ch,
+                           params.num_docs)
+
+  find_k_val.view()
 }
+
+
 
 
 workflow panagram_plot {

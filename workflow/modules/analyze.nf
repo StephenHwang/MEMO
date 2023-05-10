@@ -4,7 +4,6 @@
 
 
 /*
- * asdf
  * Cast range of K-shadows and summarize the number of Xs drawn per order
  */
 process SUM_XS_PER_K {
@@ -38,5 +37,31 @@ process SUM_XS_PER_K {
 
   awk 'BEGIN { FS = OFS = "\t" } { for(i=1; i<=NF; i++) if(\$i ~ /^ *\$/) \$i = 0 }; 1' $FILE > summary.txt
   '''
+}
+
+
+/*
+ * Cast range of K-shadows and summarize the number of Xs drawn per order
+ */
+process FIND_K_STAR() {
+  label 'find_k_star'
+  debug true
+  publishDir params.out_dir, mode:'copy'
+
+  input:
+  path find_k_star_py 
+  path "summary.txt"
+  val num_docs
+
+  output:
+  path "k_star.txt"
+
+  script:
+  """
+  ./$find_k_star_py \
+    -f summary.txt \
+    -d $num_docs \
+    > k_star.txt
+  """
 }
 
