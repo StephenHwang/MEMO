@@ -15,7 +15,9 @@ def reverse_complement(seq):
     complement = {'A': 'T',
                   'T': 'A',
                   'G': 'C',
-                  'C': 'G'}
+                  'C': 'G',
+                  'N': 'N'
+                  }
     return ''.join([complement[base] for base in seq.upper()[::-1]])
 
 def read_records(path):
