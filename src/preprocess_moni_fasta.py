@@ -3,8 +3,7 @@
 # Run:
 #  python preprocess_moni_fasta.py \
 #    < /home/stephen/Documents/projects/langmead_lab/omem/data/bacteria_pangeome_fasta/ecoli.fa \
-#    >  ecoli_sterilize_w_rc.txt \
-#    2> ecoli_sterilize_w_rc.bed
+#    >  ecoli_sterilize_w_rc.fa \
 
 from Bio import SeqIO
 import sys
@@ -31,22 +30,16 @@ def read_records(path):
         seq_lens.append(len(seq))
     return headers, seqs, seq_lens
 
-def sterilize_seq(seqs):
-    ''' Sterilze and concatenate seq and reverse complement of seq. '''
+def print_sterilize_seq(seqs, headers, rc=False):
+    ''' Print sterilzized fasta input. '''
     num_seqs = len(seqs)
-    for seq in seqs[:num_seqs]:
-        seqs.append(reverse_complement(seq))
-    return '.'.join(seqs)
-
-def print_headers_as_bed(headers, seq_lens):
-    ''' Print bed positions to stderr. '''
-    cumlen = 0
-    for header, slen in zip(headers + [header + '_rc' for header in headers], seq_lens * 2):
-        print(header + '\t' + str(cumlen), end='\t', file=sys.stderr)
-        cumlen += slen
-        print(cumlen, file=sys.stderr)
-        cumlen += 1
-    return 1
+    for header, seq in zip(headers, seqs):
+        if rc:
+            print('>' + header + '_rc')
+            print(reverse_complement(seq))
+        else:
+            print('>' + header)
+            print(seq)
 
 
 def main():
@@ -55,13 +48,13 @@ def main():
     Input:
         - stdin, fasta
     Output:
-        - stdout: sterilized, concatenated seq with '.' spacer
-        - stdout: bed file of indexes of each record
+        - stdout: sterilized fasta file of records and their reverse complement
     '''
     path = sys.stdin
     headers, seqs, seq_lens = read_records(path)
-    print(sterilize_seq(seqs))
-    print_headers_as_bed(headers, seq_lens)
+    print_sterilize_seq(seqs, headers)
+    print_sterilize_seq(seqs, headers, rc=True)
+
 
 if __name__ == "__main__":
     main()
