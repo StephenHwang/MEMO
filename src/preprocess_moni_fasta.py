@@ -6,6 +6,7 @@
 #    >  ecoli_sterilize_w_rc.fa \
 
 from Bio import SeqIO
+import argparse
 import sys
 
 
@@ -42,19 +43,31 @@ def print_sterilize_seq(seqs, headers, rc=False):
             print(seq)
 
 
-def main():
-    ''' Sterize and concatenate fasta file with '.' spacer for MONI input.
+################################################################################
+
+def parse_arguments():
+    """ Parse and return the command-line arguments. """
+    parser = argparse.ArgumentParser(description="Reads fasta file from stdin. Output sterilzized sequence with optional rc.")
+    parser.add_argument('-r', '--rc', action="store_true", default=False, dest='print_reverse_complement', help='Also print reverse complement of sequence.')
+    args = parser.parse_args()
+    return args
+
+def main(args):
+    ''' Sterize fasta file.
 
     Input:
         - stdin, fasta
     Output:
-        - stdout: sterilized fasta file of records and their reverse complement
+        - stdout: sterilized fasta file of records and, optionally, their
+                  reverse complement
     '''
     path = sys.stdin
     headers, seqs, seq_lens = read_records(path)
     print_sterilize_seq(seqs, headers)
-    print_sterilize_seq(seqs, headers, rc=True)
+    if args.print_reverse_complement:                # print reverse complement
+        print_sterilize_seq(seqs, headers, rc=True)
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_arguments()
+    main(args)
