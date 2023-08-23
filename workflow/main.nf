@@ -1,10 +1,11 @@
 #!/usr/bin/env nextflow
 
 // Import modules
-include {EXTRACT_DAP_TMP}               from './modules/index.nf'
-include {EXTRACT_DAP; INDEX_FNA; INDEX} from './modules/index.nf'
-include {EXTRACT_REGION; QUERY}         from './modules/query.nf'
-include {SUM_XS_PER_K; FIND_K_STAR}     from './modules/analyze.nf'
+// include {MONI_EXTRACT_DAP}                   from './modules/index.nf'
+include {EXTRACT_DAP_TMP}  from './modules/index.nf'
+include {EXTRACT_DAP; INDEX_FNA; INDEX}      from './modules/index.nf'
+include {EXTRACT_REGION; QUERY}              from './modules/query.nf'
+include {SUM_XS_PER_K; FIND_K_STAR}          from './modules/analyze.nf'
 
 // Pipeline log
 log.info """\
@@ -24,7 +25,29 @@ log.info """\
   .stripIndent()
 
 
-// ///////////////////         Pipeline workflows           ///////////////////
+//////////////////////         Pipeline workflows           ///////////////////
+
+
+
+/*
+ * test
+workflow test_index {
+  main:
+  dap_test_ch = MONI_EXTRACT_DAP(params.moni,
+                                 params.preprocess_moni_fasta,
+                                 params.document_listing)
+     
+  emit:
+    dap_test_ch.moni_length_files
+
+}
+
+ */
+
+
+
+
+
 
 /*
  * Workflow for creating and indexing order MEMs

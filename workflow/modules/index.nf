@@ -6,6 +6,88 @@
 /*
  * Run doc_pfp to extract document array profile.
  */
+process MONI_EXTRACT_DAP {
+  label 'moni_extract_dap'
+  debug true
+
+  input:
+  path moni
+  path preprocess_moni_fasta
+  path document_listing
+
+  output:
+  path "*.lenghts", emit: moni_length_files
+  // path "${out_prefix}_dap.txt", emit: dap
+  // path "${out_prefix}.fna", emit: fna
+
+  script:
+  """
+  // pre-process
+  document_listing_file = file($document_listing)
+  allDocs = document_listing_file.readLines()
+  for( doc : allDocs ) {
+    // get the header
+    doc_header = doc.getSimpleName()
+
+    ./$preprocess_moni_fasta -r \
+      < ${HEADER}.fa \
+      > ${HEADER}_with_rc.fa
+
+    ./$preprocess_moni_fasta \
+      < ${HEADER}.fa \
+      > ${HEADER}_processed.fa
+
+    // build index (on fasta with rc)
+    ./$moni build \
+      -r ${HEADER}_with_rc.fa -f \
+      -o index/${HEADER}
+
+  // held out query
+  cat *.processed.fa > all_docs_processed.fa
+
+  // then for every one, run moni ms
+  allDocs = document_listing_file.readLines()
+  for( doc : allDocs ) {
+    doc_header = doc.getSimpleName()
+    ./moni ms \
+      -i $doc_header \
+      -p all_docs_processed.fa \
+      -o moni_ms/$doc_header
+
+  }
+
+  // then convert to DAP
+  """
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+ * Run doc_pfp to extract document array profile.
+ */
 process EXTRACT_DAP {
   label 'extract_dap'
   debug true
