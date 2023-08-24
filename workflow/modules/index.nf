@@ -3,10 +3,89 @@
  */
 
 
+
 /*
  * Run doc_pfp to extract document array profile.
  */
 process MONI_EXTRACT_DAP {
+  label 'moni_extract_dap'
+  debug true
+  conda '/home/shwang45/miniconda3/envs/python'
+
+  input:
+  path moni
+  path moni_deps
+  path moni_src
+  path preprocess_moni_fasta
+  path document_listing
+  val doc_pivot_id
+
+  output:
+  path "*.dap", emit: moni_length_files
+
+  script:
+  """
+  mkdir index
+
+  # build moni index for every document in pivot
+  for line in \$(cut -f1 -d' ' $document_listing)
+  do
+    header="\$(basename \$line .fa)"
+    echo "\$header"
+
+    # preprocess to rc fa
+    ./${preprocess_moni_fasta} -r \
+      < "\$line" \
+      > "\${header}_with_rc.fa"
+
+    # preprocess to base fa
+    ./${preprocess_moni_fasta} \
+      < "\$line" \
+      > "\${header}_clean.fa"
+
+    # build moni index
+    ./${moni} build \
+      -r "\${header}_with_rc.fa" -f \
+      -o "index/\${header}"
+  done 
+
+  # make query fasta
+  cat *_clean.fa > concat.fa
+
+  # find query ms for every index
+  for line in \$(cut -f1 -d' ' $document_listing)
+  do
+    header="\$(basename \$line .fa)"
+    echo "Query \$header"
+    ./${moni} ms \
+      -i "index/\${header}" \
+      -p concat.fa \
+      -o "\${header}"
+  done 
+
+  # convert to MS to DAP
+  pivot_headers=\$(cat \$(cat bacteria_pangenome_paths_with_annot.txt | grep "$doc_pivot_id\$" | cut -f1 -d' ') | grep "^>" | cut -f1 -d' ' | cut -f2 -d'>')
+  echo "\$pivot_headers" | tr ' ' \\n > name.lst
+
+  # subset for lengths
+  idx=0
+  for line in \$(cut -f1 -d' ' $document_listing)
+  do
+    idx=\$[\$idx +1]
+    header="\$(basename \$line .fa)"
+    echo "Query \$header \$idx"
+    seqtk subseq "\${header}.lengths" name.lst | grep -v '^>' | tr ' ' '\n' | grep . > "file\$idx"
+  done 
+
+  paste -d ' ' \$(ls file*) | nl -v0 -w1 -s' ' > file.dap
+  """
+}
+
+
+/*
+ * Run doc_pfp to extract document array profile.
+ */
+process MONI_EXTRACT_DAP_tmp {
   label 'moni_extract_dap'
   debug true
 
@@ -30,17 +109,17 @@ process MONI_EXTRACT_DAP {
     doc_header = doc.getSimpleName()
 
     ./$preprocess_moni_fasta -r \
-      < ${HEADER}.fa \
-      > ${HEADER}_with_rc.fa
+      < \${doc_header}.fa \
+      > \${doc_header}_with_rc.fa
 
     ./$preprocess_moni_fasta \
-      < ${HEADER}.fa \
-      > ${HEADER}_processed.fa
+      < \${doc_header}.fa \
+      > \${doc_header}_processed.fa
 
     // build index (on fasta with rc)
     ./$moni build \
-      -r ${HEADER}_with_rc.fa -f \
-      -o index/${HEADER}
+      -r \${doc_header}_with_rc.fa -f \
+      -o index/\${doc_header}
 
   // held out query
   cat *.processed.fa > all_docs_processed.fa
@@ -49,10 +128,10 @@ process MONI_EXTRACT_DAP {
   allDocs = document_listing_file.readLines()
   for( doc : allDocs ) {
     doc_header = doc.getSimpleName()
-    ./moni ms \
-      -i $doc_header \
+    ./$moni ms \
+      -i \$doc_header \
       -p all_docs_processed.fa \
-      -o moni_ms/$doc_header
+      -o moni_ms/\$doc_header
 
   }
 

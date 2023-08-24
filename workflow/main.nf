@@ -1,7 +1,7 @@
 #!/usr/bin/env nextflow
 
 // Import modules
-// include {MONI_EXTRACT_DAP}                   from './modules/index.nf'
+include {MONI_EXTRACT_DAP}                   from './modules/index.nf'
 include {EXTRACT_DAP_TMP}  from './modules/index.nf'
 include {EXTRACT_DAP; INDEX_FNA; INDEX}      from './modules/index.nf'
 include {EXTRACT_REGION; QUERY}              from './modules/query.nf'
@@ -31,18 +31,21 @@ log.info """\
 
 /*
  * test
+ */
 workflow test_index {
   main:
   dap_test_ch = MONI_EXTRACT_DAP(params.moni,
+                                 params.moni_deps,
+                                 params.moni_src,
                                  params.preprocess_moni_fasta,
-                                 params.document_listing)
+                                 params.document_listing,
+                                 params.pivot_idx)
      
   emit:
     dap_test_ch.moni_length_files
 
 }
 
- */
 
 
 
@@ -167,6 +170,7 @@ workflow panagram_plot {
  *    ie. query_region_with_k
  */
 workflow {
+  test_index()
   query_region_with_k()
   vary_k()
   find_k_star()
