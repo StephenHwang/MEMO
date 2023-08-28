@@ -236,30 +236,6 @@ process EXTRACT_DAP {
   """
 }
 
-/*
- * Run doc_pfp to extract document array profile.
- */
-process EXTRACT_DAP_TMP {
-  label 'extract_dap'
-  debug true
-
-  input:
-  path doc_pfp
-  path example_full_dap
-  path example_fna
-  val out_prefix
-
-  output:
-  path "full_dap.txt", emit: dap
-  path "${out_prefix}.fna", emit: fna
-
-  script:
-  """
-  cp $example_full_dap full_dap_cp.txt
-  cp $example_fna ${out_prefix}.fna
-  """
-}
-
 
 process INDEX_FNA {
   label 'index_fna'

@@ -2,7 +2,7 @@
 
 // Import modules
 include {GATHER_FASTAS; GATHER_FASTAS_2; PROCESS_FASTA; PROCESS_FASTA_RC; DAP_PREPARE; MONI_MS; MS_TO_DAP}        from './modules/index.nf'
-include {EXTRACT_DAP_TMP; EXTRACT_DAP}                          from './modules/index.nf'
+include {EXTRACT_DAP}                          from './modules/index.nf'
 include {INDEX_FNA; INDEX}                                      from './modules/index.nf'
 include {EXTRACT_REGION; QUERY}                                 from './modules/query.nf'
 include {SUM_XS_PER_K; FIND_K_STAR}                             from './modules/analyze.nf'
@@ -32,7 +32,6 @@ log.info """\
  */
 workflow moni_ms_to_dap {
   main:
-
   // channel to gather the fastas
   raw_fasta_ch = GATHER_FASTAS(params.document_listing)
 
@@ -49,7 +48,7 @@ workflow moni_ms_to_dap {
   processed_fa_ch = PROCESS_FASTA_RC(raw_fasta_2_ch.raw_fastas.flatten(),
                                      params.preprocess_moni_fasta)
 
-  // find MS for each fasta in the collection
+  // find MS lenghts for each fasta in the collection
   ms_ch = MONI_MS(processed_fa_ch.processed_rc_fasta.flatten(),
                   dap_prep_ch.query_fasta,
                   dap_prep_ch.ref_records,
@@ -79,10 +78,6 @@ workflow index {
                          params.document_listing,
                          params.out_prefix,
                          params.pivot_idx)
-    // dap_ch = EXTRACT_DAP_TMP(params.doc_pfp,
-                         // params.example_full_dap,
-                         // params.example_fna,
-                         // params.out_prefix)
     index_fna_ch = INDEX_FNA(dap_ch.fna)
     index_ch = INDEX(params.omem_index,
                      params.dap_to_ms_py,
@@ -171,7 +166,6 @@ workflow find_k_star {
   find_k_val = FIND_K_STAR(params.find_k_star_py,
                            vary_k_ch,
                            params.num_docs)
-
   find_k_val.view()
 }
 
