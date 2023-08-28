@@ -6,100 +6,26 @@
 /*
  * Pre-processed fastas
  */
-process GATHER_FASTAS {
-  label 'gather_fastas'
-  debug true
-
-  input:
-  path document_listing
-
-  output:
-  path "*.fa", emit: raw_fastas
-
-  script:
-  """
-  for line in \$(cut -f1 -d' ' $document_listing)
-  do
-    cp \$line .
-  done
-  """
-}
-
-
-/*
- * Pre-processed fastas 2
- */
-process GATHER_FASTAS_2 {
-  label 'gather_fastas_2'
-  debug true
-
-  input:
-  path document_listing
-
-  output:
-  path "*.fa", emit: raw_fastas
-
-  script:
-  """
-  for line in \$(cut -f1 -d' ' $document_listing)
-  do
-    cp \$line .
-  done
-  """
-}
-
-
-
-
-
-
-/*
- * Pre-processed fastas
- */
 process PROCESS_FASTA {
   label 'process_fastas'
   debug true
   conda '/home/shwang45/miniconda3/envs/python'
 
   input:
-  path fasta
+  tuple path(fasta), val(index)
   path preprocess_moni_fasta
 
   output:
   path "*_clean.fa", emit: processed_fasta
-
-  script:
-  """
-  header="\$(basename ${fasta} .fa)"
-  echo "\$header"
-
-  # preprocess to base fa
-  ./${preprocess_moni_fasta} \
-    < ${fasta} \
-    > "\${header}_clean.fa"
-  """
-}
-
-
-/*
- * Pre-processed fastas
- */
-process PROCESS_FASTA_RC {
-  label 'process_rc_fastas'
-  debug true
-  conda '/home/shwang45/miniconda3/envs/python'
-
-  input:
-  path fasta
-  path preprocess_moni_fasta
-
-  output:
   path "*_clean_rc.fa", emit: processed_rc_fasta
 
   script:
   """
   header="\$(basename ${fasta} .fa)"
-  echo "\$header"
+  # preprocess to base fa
+  ./${preprocess_moni_fasta} \
+    < ${fasta} \
+    > "\${header}_clean.fa"
 
   # preprocess to base fa
   ./${preprocess_moni_fasta} -r \
@@ -159,25 +85,20 @@ process MONI_MS {
   """
   mkdir index
   header="\$(basename $index_fasta .fa)"
-  echo "\$header"
+  echo "MONI MS on: \$header"
 
-  #  -r "\${header}_with_rc.fa" -f \
+  echo "  Building index"
   # build moni index
   ./${moni} build \
     -r "\${header}.fa" -f \
     -o "index/\${header}"
 
-  ls 
-  echo "  ^ post-index" 
-
   # find MS
+  echo "  Finding matching statistics"
   ./${moni} ms \
     -i "index/\${header}" \
     -p ${query_fasta} \
     -o "\${header}"
-
-  echo "Done \$header; start seqtk"
-  ls
 
   seqtk subseq "\${header}.lengths" $ref_records | grep -v '^>' | tr ' ' '\n' | grep . > "\${header}_subset.lengths"
   """
@@ -205,13 +126,16 @@ process MS_TO_DAP {
   """
 }
 
+
+
+
 ////////////////////////////////////////////////////////////////////////////////
 
 /*
  * Run doc_pfp to extract document array profile.
  */
-process EXTRACT_DAP {
-  label 'extract_dap'
+process DOC_PFP_EXTRACT_DAP {
+  label 'doc_pfp_extract_dap'
   debug true
 
   input:

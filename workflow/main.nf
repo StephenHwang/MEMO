@@ -1,8 +1,8 @@
 #!/usr/bin/env nextflow
 
 // Import modules
-include {GATHER_FASTAS; GATHER_FASTAS_2; PROCESS_FASTA; PROCESS_FASTA_RC; DAP_PREPARE; MONI_MS; MS_TO_DAP}        from './modules/index.nf'
-include {EXTRACT_DAP}                          from './modules/index.nf'
+include {PROCESS_FASTA; DAP_PREPARE; MONI_MS; MS_TO_DAP}        from './modules/index.nf'
+include {DOC_PFP_EXTRACT_DAP}                                           from './modules/index.nf'
 include {INDEX_FNA; INDEX}                                      from './modules/index.nf'
 include {EXTRACT_REGION; QUERY}                                 from './modules/query.nf'
 include {SUM_XS_PER_K; FIND_K_STAR}                             from './modules/analyze.nf'
@@ -27,28 +27,21 @@ log.info """\
 
 //////////////////////         Pipeline workflows           ///////////////////
 
-/*
- * Make DAP from MONI
- */
 workflow moni_ms_to_dap {
   main:
-  // channel to gather the fastas
-  raw_fasta_ch = GATHER_FASTAS(params.document_listing)
+  // Channel of files and doc index
+  file_list_ch = Channel.fromPath(params.document_listing).splitCsv(sep:" ")
 
-  // process each fasta in the collection
-  processed_rc_fa_ch = PROCESS_FASTA(raw_fasta_ch.raw_fastas.flatten(),
-                                     params.preprocess_moni_fasta)
+  // Clean and rc fastas
+  processed_fa_ch = PROCESS_FASTA(file_list_ch,
+                                  params.preprocess_moni_fasta)
 
-  // get pivot headers and make concatenated processed query
-  dap_prep_ch = DAP_PREPARE(processed_rc_fa_ch.processed_fasta.collect(),
+  // Find fasta headers of pivot and concatenate processed query fastas
+  dap_prep_ch = DAP_PREPARE(processed_fa_ch.processed_fasta.collect(),
                             params.document_listing,
                             params.pivot_idx)
 
-  raw_fasta_2_ch = GATHER_FASTAS_2(params.document_listing)
-  processed_fa_ch = PROCESS_FASTA_RC(raw_fasta_2_ch.raw_fastas.flatten(),
-                                     params.preprocess_moni_fasta)
-
-  // find MS lenghts for each fasta in the collection
+  // Find MS lengths for each fasta in the collection
   ms_ch = MONI_MS(processed_fa_ch.processed_rc_fasta.flatten(),
                   dap_prep_ch.query_fasta,
                   dap_prep_ch.ref_records,
@@ -56,17 +49,10 @@ workflow moni_ms_to_dap {
                   params.moni_deps,
                   params.moni_src)
 
-  // finally make the full DAP
+  // Make the full DAP
   dap_ch = MS_TO_DAP(ms_ch.collect(),
                      params.document_listing)
-
-  emit:
-    dap_ch.full_dap
 }
-
-
-
-
 
 
 /*
@@ -74,10 +60,10 @@ workflow moni_ms_to_dap {
  */
 workflow index {
   main:
-    dap_ch = EXTRACT_DAP(params.doc_pfp,
-                         params.document_listing,
-                         params.out_prefix,
-                         params.pivot_idx)
+    dap_ch = DOC_PFP_EXTRACT_DAP(params.doc_pfp,
+                                 params.document_listing,
+                                 params.out_prefix,
+                                 params.pivot_idx)
     index_fna_ch = INDEX_FNA(dap_ch.fna)
     index_ch = INDEX(params.omem_index,
                      params.dap_to_ms_py,
@@ -178,7 +164,7 @@ workflow panagram_plot {
 
 /*
  * run:
- *   nextflow run main.nf -process.echo -entry <workflow>
+ *   nextflow run main.nf -process.echo -entry <workflow> -resume
  *    ie. query_region_with_k
  */
 workflow {
