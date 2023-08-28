@@ -3,81 +3,183 @@
  */
 
 
+/*
+ * Pre-processed fastas
+ */
+process GATHER_FASTAS {
+  label 'gather_fastas'
+  debug true
+
+  input:
+  path document_listing
+
+  output:
+  path "*.fa", emit: raw_fastas
+
+  script:
+  """
+  for line in \$(cut -f1 -d' ' $document_listing)
+  do
+    cp \$line .
+  done
+  """
+}
+
 
 /*
- * Run doc_pfp to extract document array profile.
+ * Pre-processed fastas 2
  */
-process MONI_EXTRACT_DAP {
-  label 'moni_extract_dap'
+process GATHER_FASTAS_2 {
+  label 'gather_fastas_2'
+  debug true
+
+  input:
+  path document_listing
+
+  output:
+  path "*.fa", emit: raw_fastas
+
+  script:
+  """
+  for line in \$(cut -f1 -d' ' $document_listing)
+  do
+    cp \$line .
+  done
+  """
+}
+
+
+
+
+
+
+/*
+ * Pre-processed fastas
+ */
+process PROCESS_FASTA {
+  label 'process_fastas'
   debug true
   conda '/home/shwang45/miniconda3/envs/python'
 
   input:
+  path fasta
+  path preprocess_moni_fasta
+
+  output:
+  path "*_clean.fa", emit: processed_fasta
+
+  script:
+  """
+  header="\$(basename ${fasta} .fa)"
+  echo "\$header"
+
+  # preprocess to base fa
+  ./${preprocess_moni_fasta} \
+    < ${fasta} \
+    > "\${header}_clean.fa"
+  """
+}
+
+
+/*
+ * Pre-processed fastas
+ */
+process PROCESS_FASTA_RC {
+  label 'process_rc_fastas'
+  debug true
+  conda '/home/shwang45/miniconda3/envs/python'
+
+  input:
+  path fasta
+  path preprocess_moni_fasta
+
+  output:
+  path "*_clean_rc.fa", emit: processed_rc_fasta
+
+  script:
+  """
+  header="\$(basename ${fasta} .fa)"
+  echo "\$header"
+
+  # preprocess to base fa
+  ./${preprocess_moni_fasta} -r \
+    < ${fasta} \
+    > "\${header}_clean_rc.fa"
+  """
+}
+
+
+/*
+ * Concat records
+ */
+process DAP_PREPARE {
+  label 'dap_prepare'
+  debug true
+
+  input:
+  path "*"
+  path document_listing
+  val  doc_pivot_id
+
+  output:
+  path "query.fa", emit: query_fasta
+  path "ref_records.lst", emit: ref_records
+
+  script:
+  """
+  pivot_headers=\$(cat \$(cat $document_listing | grep "$doc_pivot_id\$" | cut -f1 -d' ') | grep "^>" | cut -f1 -d' ' | cut -f2 -d'>')
+  echo "\$pivot_headers" | tr ' ' \\n > ref_records.lst
+
+  # make query fasta
+  # TODO: make in order of document_listing!!!
+  cat *_clean.fa > query.fa
+  """
+}
+
+
+/*
+ * Find matching statistics with MONI
+ */
+process MONI_MS {
+  label 'moni_ms'
+  debug true
+
+  input:
+  path index_fasta
+  path query_fasta
+  path ref_records
   path moni
   path moni_deps
   path moni_src
-  path preprocess_moni_fasta
-  path document_listing
-  val doc_pivot_id
 
   output:
-  path "*.dap", emit: moni_length_files
+  path "*_subset.lengths", emit: moni_length_files
 
   script:
   """
   mkdir index
+  header="\$(basename $index_fasta .fa)"
+  echo "\$header"
 
-  # build moni index for every document in pivot
-  for line in \$(cut -f1 -d' ' $document_listing)
-  do
-    header="\$(basename \$line .fa)"
-    echo "\$header"
+  #  -r "\${header}_with_rc.fa" -f \
+  # build moni index
+  ./${moni} build \
+    -r "\${header}.fa" -f \
+    -o "index/\${header}"
 
-    # preprocess to rc fa
-    ./${preprocess_moni_fasta} -r \
-      < "\$line" \
-      > "\${header}_with_rc.fa"
+  ls 
+  echo "  ^ post-index" 
 
-    # preprocess to base fa
-    ./${preprocess_moni_fasta} \
-      < "\$line" \
-      > "\${header}_clean.fa"
+  # find MS
+  ./${moni} ms \
+    -i "index/\${header}" \
+    -p ${query_fasta} \
+    -o "\${header}"
 
-    # build moni index
-    ./${moni} build \
-      -r "\${header}_with_rc.fa" -f \
-      -o "index/\${header}"
-  done 
+  echo "Done \$header; start seqtk"
+  ls
 
-  # make query fasta
-  cat *_clean.fa > concat.fa
-
-  # find query ms for every index
-  for line in \$(cut -f1 -d' ' $document_listing)
-  do
-    header="\$(basename \$line .fa)"
-    echo "Query \$header"
-    ./${moni} ms \
-      -i "index/\${header}" \
-      -p concat.fa \
-      -o "\${header}"
-  done 
-
-  # convert to MS to DAP
-  pivot_headers=\$(cat \$(cat bacteria_pangenome_paths_with_annot.txt | grep "$doc_pivot_id\$" | cut -f1 -d' ') | grep "^>" | cut -f1 -d' ' | cut -f2 -d'>')
-  echo "\$pivot_headers" | tr ' ' \\n > name.lst
-
-  # subset for lengths
-  idx=0
-  for line in \$(cut -f1 -d' ' $document_listing)
-  do
-    idx=\$[\$idx +1]
-    header="\$(basename \$line .fa)"
-    echo "Query \$header \$idx"
-    seqtk subseq "\${header}.lengths" name.lst | grep -v '^>' | tr ' ' '\n' | grep . > "file\$idx"
-  done 
-
-  paste -d ' ' \$(ls file*) | nl -v0 -w1 -s' ' > file.dap
+  seqtk subseq "\${header}.lengths" $ref_records | grep -v '^>' | tr ' ' '\n' | grep . > "\${header}_subset.lengths"
   """
 }
 
@@ -85,84 +187,25 @@ process MONI_EXTRACT_DAP {
 /*
  * Run doc_pfp to extract document array profile.
  */
-process MONI_EXTRACT_DAP_tmp {
-  label 'moni_extract_dap'
+process MS_TO_DAP {
+  label 'ms_to_dap'
   debug true
 
   input:
-  path moni
-  path preprocess_moni_fasta
+  path "*"
   path document_listing
 
   output:
-  path "*.lenghts", emit: moni_length_files
-  // path "${out_prefix}_dap.txt", emit: dap
-  // path "${out_prefix}.fna", emit: fna
+  path "full_dap.txt", emit: full_dap
 
   script:
   """
-  // pre-process
-  document_listing_file = file($document_listing)
-  allDocs = document_listing_file.readLines()
-  for( doc : allDocs ) {
-    // get the header
-    doc_header = doc.getSimpleName()
-
-    ./$preprocess_moni_fasta -r \
-      < \${doc_header}.fa \
-      > \${doc_header}_with_rc.fa
-
-    ./$preprocess_moni_fasta \
-      < \${doc_header}.fa \
-      > \${doc_header}_processed.fa
-
-    // build index (on fasta with rc)
-    ./$moni build \
-      -r \${doc_header}_with_rc.fa -f \
-      -o index/\${doc_header}
-
-  // held out query
-  cat *.processed.fa > all_docs_processed.fa
-
-  // then for every one, run moni ms
-  allDocs = document_listing_file.readLines()
-  for( doc : allDocs ) {
-    doc_header = doc.getSimpleName()
-    ./$moni ms \
-      -i \$doc_header \
-      -p all_docs_processed.fa \
-      -o moni_ms/\$doc_header
-
-  }
-
-  // then convert to DAP
+  # in order of document_listings
+  paste -d ' ' \$(ls *_subset.lengths) | nl -v0 -w1 -s' ' > full_dap.txt
   """
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+////////////////////////////////////////////////////////////////////////////////
 
 /*
  * Run doc_pfp to extract document array profile.
