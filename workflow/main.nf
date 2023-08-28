@@ -2,7 +2,7 @@
 
 // Import modules
 include {PROCESS_FASTA; DAP_PREPARE; MONI_MS; MS_TO_DAP}        from './modules/index.nf'
-include {DOC_PFP_EXTRACT_DAP}                                           from './modules/index.nf'
+include {DOC_PFP_EXTRACT_DAP}                                   from './modules/index.nf'
 include {INDEX_FNA; INDEX}                                      from './modules/index.nf'
 include {EXTRACT_REGION; QUERY}                                 from './modules/query.nf'
 include {SUM_XS_PER_K; FIND_K_STAR}                             from './modules/analyze.nf'

@@ -55,9 +55,6 @@ process DAP_PREPARE {
   """
   pivot_headers=\$(cat \$(cat $document_listing | grep "$doc_pivot_id\$" | cut -f1 -d' ') | grep "^>" | cut -f1 -d' ' | cut -f2 -d'>')
   echo "\$pivot_headers" | tr ' ' \\n > ref_records.lst
-
-  # make query fasta
-  # TODO: make in order of document_listing!!!
   cat *_clean.fa > query.fa
   """
 }
@@ -121,8 +118,9 @@ process MS_TO_DAP {
 
   script:
   """
-  # in order of document_listings
-  paste -d ' ' \$(ls *_subset.lengths) | nl -v0 -w1 -s' ' > full_dap.txt
+  # make in order of doc_listing file
+  # cut first column of document_listing, replace / delimeters with space, select names and then replace to align file suffix
+  paste -d ' ' \$(cat ${document_listing} | cut -d' ' -f1 | tr '/' ' ' | awk '{print \$NF}' | sed 's/.fa/_clean_rc_subset.lengths/') | nl -v0 -w1 -s' ' > full_dap.txt
   """
 }
 
