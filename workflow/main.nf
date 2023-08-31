@@ -34,7 +34,9 @@ workflow moni_ms_to_dap {
 
   // Clean and rc fastas
   processed_fa_ch = PROCESS_FASTA(file_list_ch,
-                                  params.preprocess_moni_fasta)
+                                  params.preprocess_moni_fasta,
+                                  params.document_listing,
+                                  params.pivot_idx)
 
   // Find fasta headers of pivot and concatenate processed query fastas
   dap_prep_ch = DAP_PREPARE(processed_fa_ch.processed_fasta.collect(),

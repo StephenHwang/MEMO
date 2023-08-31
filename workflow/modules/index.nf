@@ -14,20 +14,27 @@ process PROCESS_FASTA {
   input:
   tuple path(fasta), val(index)
   path preprocess_moni_fasta
+  path document_listing
+  val  doc_pivot_id
 
   output:
-  path "*_clean.fa", emit: processed_fasta
   path "*_clean_rc.fa", emit: processed_rc_fasta
+  path "*_clean.fa", emit: processed_fasta, optional: true
 
   script:
   """
   header="\$(basename ${fasta} .fa)"
-  # preprocess to base fa
-  ./${preprocess_moni_fasta} \
-    < ${fasta} \
-    > "\${header}_clean.fa"
+  pivot_file=\$(basename \$(sed '${doc_pivot_id}q;d' ${document_listing} | cut -f1 -d' ') .fa)
 
-  # preprocess to base fa
+  # preprocess to base fa if is correct pivot
+  if [ "\$header" = "\$pivot_file" ]
+  then
+    ./${preprocess_moni_fasta} \
+      < ${fasta} \
+      > "\${header}_clean.fa"
+  fi
+
+  # preprocess to clean and rc fasta
   ./${preprocess_moni_fasta} -r \
     < ${fasta} \
     > "\${header}_clean_rc.fa"
