@@ -9,6 +9,7 @@
 process PROCESS_FASTA {
   label 'process_fastas'
   debug true
+  executor 'local'
   conda '/home/shwang45/miniconda3/envs/python'
 
   input:
@@ -47,6 +48,7 @@ process PROCESS_FASTA {
  */
 process DAP_PREPARE {
   label 'dap_prepare'
+  executor 'local'
   debug true
 
   input:
@@ -73,6 +75,12 @@ process DAP_PREPARE {
 process MONI_MS {
   label 'moni_ms'
   debug true
+  executor 'local'
+  // executor 'slurm'
+  // queue 'defq'
+  // memory '100 GB'
+  // cpus 1
+  // time '24h'
 
   input:
   path index_fasta
@@ -91,13 +99,15 @@ process MONI_MS {
   header="\$(basename $index_fasta .fa)"
   echo "MONI MS on: \$header"
 
-  echo "  Building index"
   # build moni index
+  # -t 8
+  echo "  Building index"
   ./${moni} build \
     -r "\${header}.fa" -f \
     -o "index/\${header}"
 
   # find MS
+  # -t 8
   echo "  Finding matching statistics"
   ./${moni} ms \
     -i "index/\${header}" \
@@ -114,6 +124,7 @@ process MONI_MS {
  */
 process MS_TO_DAP {
   label 'ms_to_dap'
+  executor 'local'
   debug true
 
   input:
@@ -141,6 +152,7 @@ process MS_TO_DAP {
  */
 process DOC_PFP_EXTRACT_DAP {
   label 'doc_pfp_extract_dap'
+  executor 'local'
   debug true
 
   input:
@@ -168,6 +180,7 @@ process DOC_PFP_EXTRACT_DAP {
 
 process INDEX_FNA {
   label 'index_fna'
+  executor 'local'
   debug true
 
   input:
@@ -190,6 +203,7 @@ process INDEX_FNA {
  */
 process INDEX {
   label 'index_records'
+  executor 'local'
   debug true
 
   input:
