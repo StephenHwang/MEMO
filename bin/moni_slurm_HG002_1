@@ -1,0 +1,43 @@
+#!/bin/bash
+#SBATCH --job-name=moni_HG002_1
+#SBATCH --time=24:00:00
+#SBATCH --partition=defq
+#SBATCH --nodes=1
+#SBATCH --mem=100G
+# number of tasks (processes) per node
+#SBATCH --ntasks-per-node=1
+# notification
+#SBATCH --mail-type=end
+#SBATCH --mail-user=shwang45@jhu.edu
+
+# Run by: sbatch <slurm_script>
+# More info: https://www.arch.jhu.edu/support/slurm-queueing-system/
+
+# commands
+header=HG002_1
+header_path=/data/blangme2/fasta/hprc-yr1/HG002.1.fa
+# query_fasta=/data/blangme2/fasta/hprc-yr1/CHM13Y.fa
+query_fasta=/scratch4/blangme2/sjhwang/data/HPRC/index/CHM13/CHM13_chr1_80c.fa
+index_dir=/scratch4/blangme2/sjhwang/data/HPRC/index
+
+echo "Starting moni job $SLURM_JOBID on $header"
+echo "Executing on the machine:" $(hostname)
+
+## build moni index
+#echo "Build ${header} index"
+#/usr/bin/time -v \
+#  moni build \
+#  -t 8 \
+#  -r "${header_path}" -f \
+#  -o "${index_dir}/${header}"
+
+# find MS
+echo "Finding ${query_fasta} MS on ${header} index"
+/usr/bin/time -v \
+  moni ms \
+  -t 8 \
+  -i "${index_dir}/${header}" \
+  -p ${query_fasta} \
+  -o "${index_dir}/${header}"
+
+echo "Finished with job $SLURM_JOBID"
