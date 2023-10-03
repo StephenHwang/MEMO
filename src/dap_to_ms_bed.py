@@ -38,15 +38,21 @@ def pos_to_record(pos, record_intervals):
         record, start, end = interval
         if start <= pos < end:
             return record, start
-    raise Exception('Error: position greater than all record intervals')
+        else:
+            # raise Exception('Error: position greater than all record intervals')
+            continue
 
 def get_new_record(dap_row, record_intervals):
     ''' Return parsed dap record. '''
     pos, *doc_array = map(int, dap_row.split(' '))
-    header, record_start = pos_to_record(pos, record_intervals)
-    doc_array.sort(reverse=True)
-    pos -= record_start
-    return header, pos, doc_array[1:]
+    header_record_start = pos_to_record(pos, record_intervals)
+    if header_record_start is None:
+        return [None] * 3
+    else:
+        header, record_start = header_record_start
+        doc_array.sort(reverse=True)
+        pos -= record_start
+        return header, pos, doc_array[1:]
 
 def overlaps(a, b):
     """
