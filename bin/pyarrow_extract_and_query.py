@@ -4,23 +4,11 @@ import numpy as np
 import pyarrow.dataset as ds
 import argparse
 import os
-import time
-
-def cast_shadows(row, k):
-    ''' Cast k-mer shadows. '''
-    start, end, doc_idx = row
-    diff = end - k
-    if diff < start:
-        end, start = start, diff * (diff>0)
-        return start, end, doc_idx
-    else:
-        return [np.nan] * 3
 
 def load_pq(in_file, query_record, query_start, query_end, k):
     ''' Filter parquet bed file into k-mer shadow casted intervals. '''
     e_coli_mem_bed_pq_ds = ds.dataset(in_file, format="parquet")
     # extract and filter for desired region
-    start_load = time.time()
     genome_omems_arr =  np.array(
       e_coli_mem_bed_pq_ds.to_table(
         filter=(ds.field('f0') == query_record) &
@@ -30,19 +18,15 @@ def load_pq(in_file, query_record, query_start, query_end, k):
         ).to_pandas(),
         np.uint
       )
-    end_load = time.time()
-    print('time to load and filter bed:', end_load - start_load)
-    x = genome_omems_arr[genome_omems_arr[:,1] >= k]
-    diff = x[:,1] - k
-    x[:,1] = x[:,0]
-    x[:,0] = diff
-    result = x[x[:,0] < x[:,1], :]
-    print('time to cast_shadows:', time.time() - end_load)
-    return result
+    # subset for candidate rows to be shadow casted
+    genome_omems_arr_subet = genome_omems_arr[genome_omems_arr[:,1] >= k]
+    diff = genome_omems_arr_subet[:,1] - k
+    genome_omems_arr_subet[:,1] = genome_omems_arr_subet[:,0]
+    genome_omems_arr_subet[:,0] = diff
+    return genome_omems_arr_subet[genome_omems_arr_subet[:,0] < genome_omems_arr_subet[:,1], :]
 
 def merge_intervals(result, num_docs):
     ''' Merge intervals. '''
-    start_merge = time.time()
     merged_intervals = []
     for doc_idx in range(1, num_docs+1):
         # subset for recs of current doc
@@ -60,21 +44,10 @@ def merge_intervals(result, num_docs):
     # concat and sort
     merged_intervals_array = np.concatenate(merged_intervals)
     merged_sorted_array = merged_intervals_array[np.lexsort((merged_intervals_array[:,1], merged_intervals_array[:,0]))]
-    print('time to merge and sort:', start_merge - time.time())
     return merged_sorted_array
 
 def save_to_file(arr, query_record, out_file):
-    start_print = time.time()
     np.savetxt(out_file, arr, delimiter="\t", fmt=query_record+'\t%1i\t%1i\t%1i')
-    print('time to print to file:', time.time() - start_print)
-
-def save_to_file_slower(arr, query_record, out_file):
-    start_print = time.time()
-    with open('output.txt', 'a') as f:
-        for record in arr:
-            print(query_record+'\t', end='', file=f)
-            print(*record, sep='\t', file=f)
-    print('time to print to file:', time.time() - start_print)
 
 ################################################################################
 
