@@ -42,7 +42,7 @@ def pos_to_record(pos, record_intervals):
             # raise Exception('Error: position greater than all record intervals')
             continue
 
-def get_new_record(dap_row, record_intervals):
+def get_new_record(dap_row, record_intervals, sort_lcps):
     ''' Return parsed dap record. '''
     pos, *doc_array = map(int, dap_row.split(' '))
     header_record_start = pos_to_record(pos, record_intervals)
@@ -50,7 +50,8 @@ def get_new_record(dap_row, record_intervals):
         return [None] * 3
     else:
         header, record_start = header_record_start
-        doc_array.sort(reverse=True)
+        if sort_lcps:
+            doc_array.sort(reverse=True)
         pos -= record_start
         return header, pos, doc_array[1:]
 
@@ -63,7 +64,7 @@ def overlaps(a, b):
     if interval_end > interval_start:
         return interval_start, interval_end
 
-def print_dap_as_ms_bed(dap_stream, query, record_intervals):
+def print_dap_as_ms_bed(dap_stream, query, record_intervals, sort_lcps):
     '''
     Parse document array profile and print the matching statistcs to stdout
     as bed-records.
@@ -73,13 +74,13 @@ def print_dap_as_ms_bed(dap_stream, query, record_intervals):
         [3,  65535, 13, 13, 13, 12]
     '''
     for dap_row in dap_stream:
-        header, pos, doc_array = get_new_record(next(dap_row), record_intervals)
+        header, pos, doc_array = get_new_record(next(dap_row), record_intervals, sort_lcps)
         if header not in query:   # skip rows not in query
             continue
         for order_ms, lcp in enumerate(doc_array, start=1):
             print('\t'.join(map(str, [header, pos, pos+lcp, order_ms])))
 
-def print_dap_as_mem_bed(dap_stream, query, record_intervals, print_overlaps):
+def print_dap_as_mem_bed(dap_stream, query, record_intervals, print_overlaps, sort_lcps):
     '''
     Parse document array profile and print the MEMs (or MEM overlap intervals)
     to stdout as bed-records.
@@ -92,8 +93,8 @@ def print_dap_as_mem_bed(dap_stream, query, record_intervals, print_overlaps):
         1. prev <= curr
     '''
     # get first and second record
-    header_prev, pos_prev, doc_array_prev = get_new_record(next(dap_stream), record_intervals)
-    header_curr, pos_curr, doc_array_curr = get_new_record(next(dap_stream), record_intervals)
+    header_prev, pos_prev, doc_array_prev = get_new_record(next(dap_stream), record_intervals, sort_lcps)
+    header_curr, pos_curr, doc_array_curr = get_new_record(next(dap_stream), record_intervals, sort_lcps)
 
     # track prev interval per order_ms if printing interval overlaps
     if print_overlaps:
@@ -101,7 +102,7 @@ def print_dap_as_mem_bed(dap_stream, query, record_intervals, print_overlaps):
 
     # iterate through rest of records
     for dap_row_next in dap_stream:
-        header_next, pos_next, doc_array_next = get_new_record(dap_row_next, record_intervals)
+        header_next, pos_next, doc_array_next = get_new_record(dap_row_next, record_intervals, sort_lcps)
 
         # skip if documents not in query or if comparing different documents
         if (header_next not in query) or not (header_prev == header_curr == header_next):
@@ -148,6 +149,7 @@ def parse_arguments():
     parser.add_argument("--ms", action="store_true", default=False, dest="print_ms", help="Extract matching statistics and print to stdout (it can either MSs or MEMs, not both).")
     parser.add_argument("--mems", action="store_true", default=False, dest="print_mems", help="Extract MEMs and print to stdout (it can either MSs or MEMs, not both).")
     parser.add_argument("--overlap", action="store_true", default=False, dest="print_overlaps", help="extract overlap MEMs (can only be used when extracting MEMs).")
+    parser.add_argument("--sort_lcps", action="store_true", default=False, dest="sort_lcps", help="sort LCP row to extract order MS/MEMs.")
     args = parser.parse_args()
     return args
 
@@ -185,9 +187,9 @@ def main(args):
     record_intervals = parse_fai(fai_path)
     dap_stream  = read_file(dap_path)
     if args.print_ms:                # print MSs
-        print_dap_as_ms_bed(dap_stream, query, record_intervals)
+        print_dap_as_ms_bed(dap_stream, query, record_intervals, args.sort_lcps)
     elif args.print_mems:  # print MEMs
-        print_dap_as_mem_bed(dap_stream, query, record_intervals, args.print_overlaps)
+        print_dap_as_mem_bed(dap_stream, query, record_intervals, args.print_overlaps, args.sort_lcps)
 
 
 if __name__ == "__main__":
