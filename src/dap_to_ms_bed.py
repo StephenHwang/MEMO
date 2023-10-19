@@ -39,7 +39,6 @@ def pos_to_record(pos, record_intervals):
         if start <= pos < end:
             return record, start
         else:
-            # raise Exception('Error: position greater than all record intervals')
             continue
 
 def get_new_record(dap_row, record_intervals, sort_lcps):
@@ -53,7 +52,7 @@ def get_new_record(dap_row, record_intervals, sort_lcps):
         if sort_lcps:
             doc_array.sort(reverse=True)
         pos -= record_start
-        return header, pos, doc_array[1:]
+        return header, pos, doc_array[1:]    # return LCPs (excluding self-match)
 
 def overlaps(a, b):
     """

@@ -18,7 +18,7 @@ def load_pq(in_file, query_record, query_start, query_end, k):
         ).to_pandas(),
         np.uint
       )
-    # subset for candidate rows to be shadow casted
+    # subset for candidate rows and shadow cast
     genome_omems_arr_subet = genome_omems_arr[genome_omems_arr[:,1] >= k]
     diff = genome_omems_arr_subet[:,1] - k
     genome_omems_arr_subet[:,1] = genome_omems_arr_subet[:,0]
