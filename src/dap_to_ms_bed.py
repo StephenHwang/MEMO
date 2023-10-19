@@ -13,6 +13,7 @@
 #   /home/stephen/Documents/projects/langmead_lab/analysis/order_mems/bacteria_5/e_coli_pivot/full_dap.txt
 #   NZ_CP015023.1 NZ_CP015022.1
 
+import warnings
 import argparse
 import os
 
@@ -40,6 +41,8 @@ def pos_to_record(pos, record_intervals):
             return record, start
         else:
             continue
+    if end < pos:
+        warnings.warn('Position beyond all intervals')
 
 def get_new_record(dap_row, record_intervals, sort_lcps):
     ''' Return parsed dap record. '''
