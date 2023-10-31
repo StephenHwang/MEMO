@@ -12,7 +12,7 @@ OUT_FILE=
 usage() {
 echo \
 "
-kmc_conservation_query - query k-mer pangenome sequence conservation in chr:start-end from  KMC index
+kmc conservation query - query k-mer pangenome sequence conservation in chr:start-end from a KMC database
 Usage: ./kmc_conservation_query [options]
 
 Options:
@@ -56,7 +56,7 @@ samtools faidx $FASTA_FILE
 samtools faidx $FASTA_FILE -r _region.txt > _region.fa
 
 # Query KMC database
-./kmc_conservation_query.out \
+./kmc_query.out \
   --d $KMC_DATABASE_PREFIX \
   --f _region.fa \
   > $OUT_FILE
