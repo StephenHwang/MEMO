@@ -4,6 +4,7 @@ set -euo pipefail
 
 # basic params
 # ./kmc_conservation_query.sh -d /home/shwang45/vast_sjhwang/kmc_query/file -f test.fa -r record1:8-200 -o out.txt
+KMC_QUERY_SCRIPT=/scratch4/blangme2/sjhwang/omem/bin/kmc_query/kmc_query.out
 KMC_DATABASE_PREFIX=
 FASTA_FILE=
 QUERY_REGION=
@@ -56,7 +57,7 @@ samtools faidx $FASTA_FILE
 samtools faidx $FASTA_FILE -r _region.txt > _region.fa
 
 # Query KMC database
-./kmc_query.out \
+$KMC_QUERY_SCRIPT \
   --d $KMC_DATABASE_PREFIX \
   --f _region.fa \
   > $OUT_FILE

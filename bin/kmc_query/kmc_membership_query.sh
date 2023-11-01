@@ -4,6 +4,7 @@ set -euo pipefail
 
 # basic params
 # ./kmc_membership_query.sh -m /home/shwang45/vast_sjhwang/kmc_query/kmc_database_to_hprc_genome.txt -f test.fa -r record1:8-200 -o out.txt
+KMC_QUERY_SCRIPT=/scratch4/blangme2/sjhwang/omem/bin/kmc_query/kmc_query.out
 KMC_DATABASE_MAPPING=
 FASTA_FILE=
 QUERY_REGION=
@@ -59,7 +60,7 @@ samtools faidx $FASTA_FILE -r _region.txt > _region.fa
 while IFS=$' ' read -r genome kmc_database_path; do
     echo "Querying genome $genome at: $kmc_database_path"
     # Query KMC database
-    ./kmc_query.out \
+    $KMC_QUERY_SCRIPT \
         --d $kmc_database_path \
         --f _region.fa \
         > ${genome}_counts.txt
