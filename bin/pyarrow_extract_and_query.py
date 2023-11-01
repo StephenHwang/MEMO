@@ -7,17 +7,19 @@ import os
 
 def load_pq(in_file, query_record, query_start, query_end, k):
     ''' Filter parquet bed file into k-mer shadow casted intervals. '''
-    e_coli_mem_bed_pq_ds = ds.dataset(in_file, format="parquet")
     # extract and filter for desired region
+    e_coli_mem_bed_pq_ds = ds.dataset(in_file, format="parquet")
+    interval_filter = (
+        (ds.field('f0') == query_record) &
+        ((query_start <= ds.field('f1')) & (ds.field('f1') <= query_end)) |
+        ((query_start <= ds.field('f2')) & (ds.field('f2') <= query_end))
+    )
     genome_omems_arr =  np.array(
-      e_coli_mem_bed_pq_ds.to_table(
-        filter=(ds.field('f0') == query_record) &
-               (ds.field('f1') >= query_start) &
-               (ds.field('f2') <= query_end),
-          columns=['f1', 'f2', 'f3']
-        ).to_pandas(),
-        np.uint
-      )
+        e_coli_mem_bed_pq_ds.to_table(
+            filter=interval_filter,
+            columns=['f1', 'f2', 'f3']
+        ).to_pandas(), np.uint)
+
     # subset for candidate rows and shadow cast
     genome_omems_arr_subet = genome_omems_arr[genome_omems_arr[:,1] >= k]
     diff = genome_omems_arr_subet[:,1] - k
