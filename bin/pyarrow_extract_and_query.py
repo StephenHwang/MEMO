@@ -7,35 +7,9 @@ import argparse
 import os
 
 
-def _load_pq(in_file, query_record, query_start, query_end, k):
-    ''' Filter parquet bed file into k-mer shadow casted intervals. '''
-    # extract and filter for desired region
-    e_coli_mem_bed_pq_ds = ds.dataset(in_file, format="parquet")
-    interval_filter = (
-        (ds.field('f0') == query_record) &
-        ((query_start <= ds.field('f1')) & (ds.field('f1') <= query_end)) |
-        ((query_start <= ds.field('f2')) & (ds.field('f2') <= query_end))
-    )
-    genome_omems_arr =  np.array(
-        e_coli_mem_bed_pq_ds.to_table(
-            filter=interval_filter,
-            columns=['f1', 'f2', 'f3']
-        ).to_pandas(), np.uint)
-
-    # import IPython; IPython.embed()  # TODO
-
-    # subset for candidate rows and shadow cast
-    genome_omems_arr_subset = genome_omems_arr[genome_omems_arr[:,1] >= k]
-    diff = genome_omems_arr_subset[:,1] - k
-    genome_omems_arr_subset[:,1] = genome_omems_arr_subset[:,0]
-    genome_omems_arr_subset[:,0] = diff
-    return genome_omems_arr_subset[genome_omems_arr_subset[:,0] < genome_omems_arr_subset[:,1], :]
-
 def load_pq(in_file, query_record, query_start, query_end, k):
     ''' Filter parquet bed file into k-mer shadow casted intervals. '''
-    # extract and filter for desired region
     e_coli_mem_bed_pq_ds = ds.dataset(in_file, format="parquet")
-
     interval_filter_1 = (
         (ds.field('f0') == query_record) &
         (ds.field('f1') < query_start) &
@@ -68,7 +42,6 @@ def load_pq(in_file, query_record, query_start, query_end, k):
             filter=interval_filter_3,
             columns=['f1', 'f2', 'f3']
         ).to_pandas(), np.uint)
-
     genome_omems_arr = np.concatenate([genome_omems_arr_1, genome_omems_arr_2, genome_omems_arr_3], axis=0)
 
     # subset for candidate rows and shadow cast
@@ -100,8 +73,9 @@ def merge_intervals(result, num_docs):
     merged_sorted_array = merged_intervals_array[np.lexsort((merged_intervals_array[:,1], merged_intervals_array[:,0]))]
     return merged_sorted_array
 
-def convert_to_pos_counts(k, true_start, true_end, out_file, num_docs):
-    ''' Get per-position document counts. Trying to replicate KMC. '''
+
+def conservation_query(k, true_start, true_end, out_file, num_docs):
+    ''' Get per-position document counts. '''
     mem_bed = pd.read_csv(out_file, sep='\t', header=None,
                           names=['chrm', 'start', 'end', 'order'])
     bed_pos_start, bed_pos_end = min(mem_bed['start']), max(mem_bed['end'])
@@ -125,6 +99,37 @@ def convert_to_pos_counts(k, true_start, true_end, out_file, num_docs):
     # print('adj:', adjusted_start, adjusted_end)
     # rec = rec[max(adjusted_start, 0) : adjusted_end + 1]
     print(*rec, sep='\n')
+
+
+def membership_query(k, true_start, true_end, out_file, num_docs):
+    ''' Get per-position presence/absence, per document. '''
+    mem_bed = pd.read_csv(out_file, sep='\t', header=None,
+                          names=['chrm', 'start', 'end', 'order'])
+    bed_pos_start, bed_pos_end = min(mem_bed['start']), max(mem_bed['end'])
+
+    # adjust the positions of the mem_bed to start at 0
+    mem_bed['start'] -= bed_pos_start
+    mem_bed['end'] -= bed_pos_start
+
+    rec = np.ones([num_docs+1, bed_pos_end - bed_pos_start])
+
+    # import IPython; IPython.embed()  # TODO
+    for idx, values in mem_bed.iterrows():
+        chrm, start, end, order = values
+        start, end, order = map(int, [start, end, order])
+        rec[order, start:end] = 0
+
+    # adjusted_start = true_start - (bed_pos_start + 1)
+    # adjusted_end = true_end - bed_pos_end - k
+    # verify that adjusted_start is not negative
+    # print('adj:', adjusted_start, adjusted_end)
+    # rec = rec[max(adjusted_start, 0) : adjusted_end + 1]
+    # print(*rec, sep='\n')
+
+    for _ in rec.T:
+        _ = map(int, _)
+        print(*_, sep=' ')
+
 
 def save_to_file(arr, query_record, out_file):
     np.savetxt(out_file, arr, delimiter="\t", fmt=query_record+'\t%1i\t%1i\t%1i')
@@ -151,11 +156,17 @@ def main(args):
     genome_region = args.genome_region
     query_record, start_end = genome_region.split(':')
     query_start, query_end = map(int, start_end.split('-'))
-    # res = load_pq(in_file, query_record, query_start, query_end, k_adj)
-    # mer_res = merge_intervals(res, num_docs)
-    # save_to_file(mer_res, query_record, out_file)
-    # save_to_file(res, query_record, out_file)
-    convert_to_pos_counts(k, query_start, query_end, out_file, num_docs)
+
+    res = load_pq(in_file, query_record, query_start, query_end, k_adj)
+
+    # merge intervals
+    # save_to_file(merge_intervals(res, num_docs), query_record, out_file)
+    # no merging of intervals
+    save_to_file(res, query_record, out_file)
+
+    # conservation_query(k, query_start, query_end, out_file, num_docs)
+    membership_query(k, query_start, query_end, out_file, num_docs)
+
 
 
 if __name__ == "__main__":
