@@ -36,7 +36,12 @@ do
     esac
 done
 
-ls $LENGTHS_DIR | xargs -I file /scratch4/blangme2/sjhwang/omem/bin/verticalize_lengths.sh -f file -o $OUTDIR
+ls $LENGTHS_DIR/*.lengths | xargs -I file /scratch4/blangme2/sjhwang/omem/bin/verticalize_lengths.sh -f file -o $OUTDIR
+
+echo "Done convert to vertical"
+ls $OUTDIR
+
+echo "Start make dap"
 paste -d ' ' $(ls $OUTDIR/*.lengths | sort) | nl -v0 -w1 -s' ' > full_dap.txt
 
 
