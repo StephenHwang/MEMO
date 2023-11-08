@@ -35,14 +35,11 @@ def main(args):
     '''
     path = args.file
     k = int(args.k)
-    print('Querying k:', k)
-
     reader = file_reader(path)
-    vals = []
-    for _ in reader:
-        vals.append(_)
-
-    for length in vals:
+    # vals = [_ for _ in reader]
+    # for _ in reader:
+        # vals.append(_)
+    for length in reader:
         if int(length) >= k:
             print(1)
         else:
