@@ -85,7 +85,6 @@ def conservation_query(k, true_start, true_end, out_file, num_docs):
     mem_bed['end'] -= bed_pos_start
     rec = [num_docs+1] * (bed_pos_end - bed_pos_start)
 
-    # import IPython; IPython.embed()  # TODO
     for idx, values in mem_bed.iterrows():
         chrm, start, end, order = values
         start, end, order = map(int, [start, end, order])
@@ -113,7 +112,6 @@ def membership_query(k, true_start, true_end, out_file, num_docs):
 
     rec = np.ones([num_docs+1, bed_pos_end - bed_pos_start])
 
-    # import IPython; IPython.embed()  # TODO
     for idx, values in mem_bed.iterrows():
         chrm, start, end, order = values
         start, end, order = map(int, [start, end, order])
@@ -139,18 +137,20 @@ def save_to_file(arr, query_record, out_file):
 def parse_arguments():
     """ Parse and return the command-line arguments. """
     parser = argparse.ArgumentParser(description="Extract and query overlap MEMs for k-mer presence/absence.")
-    parser.add_argument('-b', '--bed_file', dest='in_file', help='parquet bed file', required=True)
+    parser.add_argument('-b', '--pq_bed_file', dest='in_file', help='parquet bed file', required=True)
     parser.add_argument('-o', '--out_file', dest='out_file', help='output bed file', required=True)
-    parser.add_argument('-n', '--ndocs', dest='num_docs', help='number of documents', required=True)
+    parser.add_argument('-n', '--ndocs', dest='num_docs', help='total number of genomes in the pangenome', required=True)
     parser.add_argument('-k', '--kmer_size', dest='k', help='k-mer size', required=True)
     parser.add_argument('-r', '--genome_region', dest='genome_region', help='genome region, formatted as record:start-end', required=True)
+    parser.add_argument('-m', '--membership_query', dest='membership_query', action='store_true', default=False,
+                        help='Perform membership query instead of conservation query')
     args = parser.parse_args()
     return args
 
 def main(args):
     in_file = args.in_file
     out_file = args.out_file
-    num_docs = int(args.num_docs)
+    num_docs = int(args.num_docs) - 1
     k = int(args.k)
     k_adj = k - 1
     genome_region = args.genome_region
@@ -164,8 +164,10 @@ def main(args):
     # no merging of intervals
     save_to_file(res, query_record, out_file)
 
-    # conservation_query(k, query_start, query_end, out_file, num_docs)
-    membership_query(k, query_start, query_end, out_file, num_docs)
+    if args.membership_query:
+        membership_query(k, query_start, query_end, out_file, num_docs)
+    else:
+        conservation_query(k, query_start, query_end, out_file, num_docs)
 
 
 
