@@ -13,14 +13,17 @@ OUT_FILE=
 usage() {
 echo \
 "
-kmc conservation query - query k-mer pangenome sequence conservation in chr:start-end from a KMC database
-Usage: ./kmc_conservation_query [options]
+kmc membership query - query k-mer pangenome sequence membership in chr:start-end from a list of KMC databases
+Usage: ./kmc_membership_query [options]
 
 Options:
-  -m [FILE]              file mapping of genome to kmc index prefix
+  -m [FILE]              file containing paths to each kmc index prefix, one path per line
   -f [FILE]              fasta file
   -r [CHR:START-END]     target query region to extract from indexed omem bed
   -o [FILE]              output file name ['/.']
+
+Note: Region is indexed as [START-END) by 0-index.
+  ie. to query a whole contig, use: 0 to samtools faidx size
 "
 exit 0
 }
@@ -57,18 +60,22 @@ samtools faidx $FASTA_FILE
 samtools faidx $FASTA_FILE -r _region.txt > _region.fa
 
 # Use a while loop to read and query each KMC database
-while IFS=$' ' read -r genome kmc_database_path; do
-    echo "Querying genome $genome at: $kmc_database_path"
+COUNT=0
+echo -n '' > _order_file.txt
+while IFS=$' ' read -r KMC_DATABASE_PATH; do
+    echo "Querying genome $COUNT at: $KMC_DATABASE_PATH"
+    echo ${COUNT}_counts.txt >> _order_file.txt
     # Query KMC database
     $KMC_QUERY_SCRIPT \
-        --d $kmc_database_path \
+        --d $KMC_DATABASE_PATH \
         --f _region.fa \
-        > ${genome}_counts.txt
+        > ${COUNT}_counts.txt
+    COUNT=$((COUNT+1))
 done < $KMC_DATABASE_MAPPING
-
-paste -d ' ' $(cat $KMC_DATABASE_MAPPING | cut -d' ' -f1 | sed 's/$/_counts.txt/g') > $OUT_FILE
+paste -d ' ' $(cat _order_file.txt) > $OUT_FILE
 
 # Clean temporary files
-rm _region.txt _region.fa *_counts.txt
+cat _order_file.txt | xargs rm
+rm _region.txt _region.fa _order_file.txt
 
 echo "Done"

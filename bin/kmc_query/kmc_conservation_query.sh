@@ -22,8 +22,7 @@ Options:
   -r [CHR:START-END]     target query region to extract from indexed omem bed
   -o [FILE]              output file name ['/.']
 
-Note:
-Region is indexed as [START-END) by 0-index.
+Note: Region is indexed as [START-END) by 0-index.
   ie. to query a whole contig, use: 0 to samtools faidx size
 "
 exit 0
