@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+#
+# Run: Extract bed-intervals overlapping query region
+#  ./parquet_extract_bed.py \
+#    -b bed.parquet \
+#    -r chr:start-end \
+#    -o out.bed
 
 import numpy as np
 import pandas as pd
@@ -7,70 +13,24 @@ import argparse
 import os
 
 
-def _filter_pq(in_file, query_record, query_start, query_end):
-    ''' Filter parquet bed file into k-mer shadow casted intervals. '''
-    e_coli_mem_bed_pq_ds = ds.dataset(in_file, format="parquet")
-    interval_filter_1 = (
-        (ds.field('f0') == query_record) &
-        (ds.field('f1') < query_start) &
-        (ds.field('f2') > query_start)
-    )
-    interval_filter_2 = (
-        (ds.field('f0') == query_record) &
-        (ds.field('f1') >= query_start) &
-        (ds.field('f2') <= query_end)
-    )
-    interval_filter_3 = (
-        (ds.field('f0') == query_record) &
-        (ds.field('f1') < query_end) &
-        (ds.field('f2') > query_end) &
-        (ds.field('f1') >= query_start)
-    )
-    genome_omems_arr_1 =  np.array(
-        e_coli_mem_bed_pq_ds.to_table(
-            filter=interval_filter_1,
-            columns=['f1', 'f2', 'f3']
-        ).to_pandas(), np.uint)
-    genome_omems_arr_2 =  np.array(
-        e_coli_mem_bed_pq_ds.to_table(
-            filter=interval_filter_2,
-            columns=['f1', 'f2', 'f3']
-        ).to_pandas(), np.uint)
-    genome_omems_arr_3 =  np.array(
-        e_coli_mem_bed_pq_ds.to_table(
-            filter=interval_filter_3,
-            columns=['f1', 'f2', 'f3']
-        ).to_pandas(), np.uint)
-    genome_omems_arr = np.concatenate([genome_omems_arr_1, genome_omems_arr_2, genome_omems_arr_3], axis=0)
-    return genome_omems_arr
-
-
 def filter_pq(in_file, query_record, query_start, query_end):
     ''' Filter parquet bed file into k-mer shadow casted intervals. '''
-    e_coli_mem_bed_pq_ds = ds.dataset(in_file, format="parquet")
-    interval_filter_1 = (
-        (ds.field('f0') == query_record) &
-        (ds.field('f1') <= query_start) &
-        (ds.field('f2') >  query_start)
-    )
-    interval_filter_2 = (
-        (ds.field('f0') == query_record) &
-        (ds.field('f1') >  query_start) &
-        (ds.field('f1') <  query_end)
-    )
-    genome_omems_arr_1 =  np.array(
-        e_coli_mem_bed_pq_ds.to_table(
-            filter=interval_filter_1,
-            columns=['f1', 'f2', 'f3']
-        ).to_pandas(), np.uint)
-    genome_omems_arr_2 =  np.array(
-        e_coli_mem_bed_pq_ds.to_table(
-            filter=interval_filter_2,
-            columns=['f1', 'f2', 'f3']
-        ).to_pandas(), np.uint)
-    genome_omems_arr = np.concatenate([genome_omems_arr_1, genome_omems_arr_2], axis=0)
-    return genome_omems_arr
-
+    pq_ds = ds.dataset(in_file, format="parquet")
+    qs_in_f_filter = ((ds.field('f0') == query_record) &
+                      (ds.field('f1') <= query_start) &
+                      (ds.field('f2') >  query_start))
+    f1_in_qs_filter = ((ds.field('f0') == query_record) &
+                       (ds.field('f1') >  query_start) &
+                       (ds.field('f1') <  query_end))
+    qs_in_f_arr = np.array(pq_ds.to_table(
+                           filter=qs_in_f_filter,
+                           columns=['f1', 'f2', 'f3']
+                          ).to_pandas(), np.uint)
+    f1_in_qs_arr = np.array(pq_ds.to_table(
+                            filter=f1_in_qs_filter,
+                            columns=['f1', 'f2', 'f3']
+                           ).to_pandas(), np.uint)
+    return np.concatenate([qs_in_f_arr, f1_in_qs_arr], axis=0)
 
 
 def save_to_file(arr, query_record, out_file):
