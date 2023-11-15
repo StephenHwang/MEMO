@@ -1,4 +1,14 @@
 #!/usr/bin/env python3
+#
+# Run: Extract bed-intervals overlapping query region
+#  ./memo_query.py \
+#    -b bed.parquet \
+#    -r chr:start-end \
+#    -n num_docs_in_pangenome \
+#    -k kmer_size \
+#    -o out.bed
+#
+# optional: -m flag for membership query
 
 import numpy as np
 import pandas as pd
@@ -7,50 +17,41 @@ import argparse
 import os
 
 
-def load_pq(in_file, query_record, query_start, query_end, k):
+def filter_pq(in_file, query_record, query_start, query_end):
     ''' Filter parquet bed file into k-mer shadow casted intervals. '''
-    e_coli_mem_bed_pq_ds = ds.dataset(in_file, format="parquet")
-    interval_filter_1 = (
-        (ds.field('f0') == query_record) &
-        (ds.field('f1') < query_start) &
-        (ds.field('f2') >= query_start)
-    )
-    interval_filter_2 = (
-        (ds.field('f0') == query_record) &
-        (ds.field('f1') >= query_start) &
-        (ds.field('f2') <= query_end)
-    )
-    interval_filter_3 = (
-        (ds.field('f0') == query_record) &
-        (ds.field('f1') <= query_end) &
-        (ds.field('f2') > query_end) &
-        (ds.field('f1') >= query_start)
-    )
+    pq_ds = ds.dataset(in_file, format="parquet")
+    qs_in_f_filter = ((ds.field('f0') == query_record) &
+                      (ds.field('f1') <= query_start) &
+                      (ds.field('f2') >  query_start))
+    f1_in_qs_filter = ((ds.field('f0') == query_record) &
+                       (ds.field('f1') >  query_start) &
+                       (ds.field('f1') <  query_end))
+    qs_in_f_arr = np.array(pq_ds.to_table(
+                           filter=qs_in_f_filter,
+                           columns=['f1', 'f2', 'f3']
+                          ).to_pandas(), np.uint)
+    f1_in_qs_arr = np.array(pq_ds.to_table(
+                            filter=f1_in_qs_filter,
+                            columns=['f1', 'f2', 'f3']
+                           ).to_pandas(), np.uint)
+    return np.concatenate([qs_in_f_arr, f1_in_qs_arr], axis=0)
 
-    genome_omems_arr_1 =  np.array(
-        e_coli_mem_bed_pq_ds.to_table(
-            filter=interval_filter_1,
-            columns=['f1', 'f2', 'f3']
-        ).to_pandas(), np.uint)
-    genome_omems_arr_2 =  np.array(
-        e_coli_mem_bed_pq_ds.to_table(
-            filter=interval_filter_2,
-            columns=['f1', 'f2', 'f3']
-        ).to_pandas(), np.uint)
-    genome_omems_arr_3 =  np.array(
-        e_coli_mem_bed_pq_ds.to_table(
-            filter=interval_filter_3,
-            columns=['f1', 'f2', 'f3']
-        ).to_pandas(), np.uint)
-    genome_omems_arr = np.concatenate([genome_omems_arr_1, genome_omems_arr_2, genome_omems_arr_3], axis=0)
+def save_to_file(np_arr, query_record, out_file):
+    ''' Save np array to BED file. '''
+    # np.savetxt(out_file, np_arr, delimiter="\t", fmt=query_record+'\t%1i\t%1i\t%1i')
+    np.savetxt(out_file, np_arr, fmt=query_record+'\t%1i\t%1i\t%1i')
 
-    # subset for candidate rows and shadow cast
+def shadow_cast(genome_omems_arr, k):
+    ''' Filter parquet bed file into k-mer shadow casted intervals. '''
     genome_omems_arr_subset = genome_omems_arr[genome_omems_arr[:,1] >= k]
     diff = genome_omems_arr_subset[:,1] - k
     genome_omems_arr_subset[:,1] = genome_omems_arr_subset[:,0]
     genome_omems_arr_subset[:,0] = diff
     return genome_omems_arr_subset[genome_omems_arr_subset[:,0] < genome_omems_arr_subset[:,1], :]
 
+def adjust_interval():
+    ''' Adjust the boundaries of the output to match query interval. '''
+    return 42
 
 def merge_intervals(result, num_docs):
     ''' Merge intervals. '''
@@ -72,7 +73,6 @@ def merge_intervals(result, num_docs):
     merged_intervals_array = np.concatenate(merged_intervals)
     merged_sorted_array = merged_intervals_array[np.lexsort((merged_intervals_array[:,1], merged_intervals_array[:,0]))]
     return merged_sorted_array
-
 
 def conservation_query(k, true_start, true_end, out_file, num_docs):
     ''' Get per-position document counts. '''
@@ -129,8 +129,6 @@ def membership_query(k, true_start, true_end, out_file, num_docs):
         print(*_, sep=' ')
 
 
-def save_to_file(arr, query_record, out_file):
-    np.savetxt(out_file, arr, delimiter="\t", fmt=query_record+'\t%1i\t%1i\t%1i')
 
 ################################################################################
 
@@ -157,18 +155,18 @@ def main(args):
     query_record, start_end = genome_region.split(':')
     query_start, query_end = map(int, start_end.split('-'))
 
-    res = load_pq(in_file, query_record, query_start, query_end, k_adj)
+    # filter pq and shadow cast
+    genome_mems_arr = filter_pq(in_file, query_record, query_start, query_end)
+    genome_mems_arr_casted = shadow_cast(genome_mems_arr, k_adj)
 
-    # merge intervals
-    # save_to_file(merge_intervals(res, num_docs), query_record, out_file)
-    # no merging of intervals
-    save_to_file(res, query_record, out_file)
+    # save shadow casted bed file
+    save_to_file(genome_mems_arr_casted, query_record, out_file)
 
+    # shadow cast to per-position counts
     if args.membership_query:
         membership_query(k, query_start, query_end, out_file, num_docs)
     else:
         conservation_query(k, query_start, query_end, out_file, num_docs)
-
 
 
 if __name__ == "__main__":
