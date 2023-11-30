@@ -49,14 +49,10 @@ def shadow_cast(genome_omems_arr, k):
     genome_omems_arr_subset[:,0] = diff
     return genome_omems_arr_subset[genome_omems_arr_subset[:,0] < genome_omems_arr_subset[:,1], :]
 
-def adjust_interval():
-    ''' Adjust the boundaries of the output to match query interval. '''
-    return 42
-
 def merge_intervals(result, num_docs):
     ''' Merge intervals. '''
     merged_intervals = []
-    for doc_idx in range(1, num_docs+1):
+    for doc_idx in range(1, num_docs):
         # subset for recs of current doc
         doc_idx_intervals = result[result[:,2] == doc_idx, 0:2]
         index = 0
@@ -74,29 +70,49 @@ def merge_intervals(result, num_docs):
     merged_sorted_array = merged_intervals_array[np.lexsort((merged_intervals_array[:,1], merged_intervals_array[:,0]))]
     return merged_sorted_array
 
+
+def adjust_margins(true_start, true_end, mb_start, mb_end, rec):
+    ''' Adjust the boundaries of the output to match query interval. '''
+    # assertions
+    if true_start < mb_start:
+        raise Exception("Error: Query does not capture interval start.")
+    if len(rec) < (true_start - true_end):
+        raise Exception("Error: Query does not capture interval end.")
+    start_adj = true_start - mb_start
+    region_len = true_end - true_start
+    # print(len(rec), region_len)
+    return rec[start_adj : start_adj + region_len]
+
+
 def conservation_query(k, true_start, true_end, out_file, num_docs):
     ''' Get per-position document counts. '''
     mem_bed = pd.read_csv(out_file, sep='\t', header=None,
                           names=['chrm', 'start', 'end', 'order'])
-    bed_pos_start, bed_pos_end = min(mem_bed['start']), max(mem_bed['end'])
+    mb_start, mb_end = min(mem_bed['start']), max(mem_bed['end'])
 
-    # adjust the positions of the mem_bed to start at 0
-    mem_bed['start'] -= bed_pos_start
-    mem_bed['end'] -= bed_pos_start
-    rec = [num_docs+1] * (bed_pos_end - bed_pos_start)
+    if true_start < mb_start:
+        raise Exception("Error: Query does not capture interval start.")
 
-    for idx, values in mem_bed.iterrows():
+    start_adj = true_start - mb_start
+    region_len = true_end - true_start
+
+    # adjust start of bed region to 0
+    mem_bed['start'] -= mb_start
+    mem_bed['end'] -= mb_start
+
+    # make rec array
+    rec_len = max(mb_end - mb_start + 1, true_end - true_start + 1)
+    rec = [num_docs] * (rec_len + start_adj)
+
+
+    for idx, values in mem_bed.iterrows():                       # iterate rows of bed file
         chrm, start, end, order = values
         start, end, order = map(int, [start, end, order])
         for idx in range(start, end):
             if order < rec[idx]:
                 rec[idx] = order
 
-    # adjusted_start = true_start - (bed_pos_start + 1)
-    # adjusted_end = true_end - bed_pos_end - k
-    # verify that adjusted_start is not negative
-    # print('adj:', adjusted_start, adjusted_end)
-    # rec = rec[max(adjusted_start, 0) : adjusted_end + 1]
+    rec = rec[start_adj : start_adj + region_len]      # NOTE: queries end to end of region, even if k-mers expands past?
     print(*rec, sep='\n')
 
 
@@ -104,26 +120,21 @@ def membership_query(k, true_start, true_end, out_file, num_docs):
     ''' Get per-position presence/absence, per document. '''
     mem_bed = pd.read_csv(out_file, sep='\t', header=None,
                           names=['chrm', 'start', 'end', 'order'])
-    bed_pos_start, bed_pos_end = min(mem_bed['start']), max(mem_bed['end'])
+    mb_start, mb_end = min(mem_bed['start']), max(mem_bed['end'])
 
     # adjust the positions of the mem_bed to start at 0
-    mem_bed['start'] -= bed_pos_start
-    mem_bed['end'] -= bed_pos_start
+    mem_bed['start'] -= mb_start
+    mem_bed['end'] -= mb_start
 
-    rec = np.ones([num_docs+1, bed_pos_end - bed_pos_start])
+    rec_len = max(mb_end - mb_start + 1, true_end - true_end + 1)
+    rec = np.ones([num_docs, rec_len])
 
     for idx, values in mem_bed.iterrows():
         chrm, start, end, order = values
         start, end, order = map(int, [start, end, order])
         rec[order, start:end] = 0
 
-    # adjusted_start = true_start - (bed_pos_start + 1)
-    # adjusted_end = true_end - bed_pos_end - k
-    # verify that adjusted_start is not negative
-    # print('adj:', adjusted_start, adjusted_end)
-    # rec = rec[max(adjusted_start, 0) : adjusted_end + 1]
-    # print(*rec, sep='\n')
-
+    rec = adjust_margins(true_start, true_end, mb_start, mb_end, rec)
     for _ in rec.T:
         _ = map(int, _)
         print(*_, sep=' ')
@@ -148,7 +159,7 @@ def parse_arguments():
 def main(args):
     in_file = args.in_file
     out_file = args.out_file
-    num_docs = int(args.num_docs) - 1
+    num_docs = int(args.num_docs)
     k = int(args.k)
     k_adj = k - 1
     genome_region = args.genome_region
@@ -157,6 +168,7 @@ def main(args):
 
     # filter pq and shadow cast
     genome_mems_arr = filter_pq(in_file, query_record, query_start, query_end)
+    # save_to_file(genome_mems_arr, query_record, out_file + '.uncasted')
     genome_mems_arr_casted = shadow_cast(genome_mems_arr, k_adj)
 
     # save shadow casted bed file
