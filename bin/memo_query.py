@@ -71,49 +71,51 @@ def merge_intervals(result, num_docs):
     return merged_sorted_array
 
 
-def adjust_margins(true_start, true_end, mb_start, mb_end, rec):
-    ''' Adjust the boundaries of the output to match query interval. '''
-    # assertions
-    if true_start < mb_start:
-        raise Exception("Error: Query does not capture interval start.")
-    if len(rec) < (true_start - true_end):
-        raise Exception("Error: Query does not capture interval end.")
-    start_adj = true_start - mb_start
-    region_len = true_end - true_start
-    # print(len(rec), region_len)
-    return rec[start_adj : start_adj + region_len]
-
-
+# def conservation_query_unoptimal(k, true_start, true_end, out_file, num_docs):
 def conservation_query(k, true_start, true_end, out_file, num_docs):
-    ''' Get per-position document counts. '''
-    mem_bed = pd.read_csv(out_file, sep='\t', header=None,
-                          names=['chrm', 'start', 'end', 'order'])
-    mb_start, mb_end = min(mem_bed['start']), max(mem_bed['end'])
+    '''
+    Get per-position document counts.
 
-    if true_start < mb_start:
-        raise Exception("Error: Query does not capture interval start.")
+    Run stats: user=44.61, system=4.87, elapsed=41.21, CPU=120%, MemMax=2814528
+    '''
+    mem_bed = pd.read_csv(out_file, sep='\t', header=None, names=['chrm', 'start', 'end', 'order'])
 
-    start_adj = true_start - mb_start
-    region_len = true_end - true_start
+    # clip mem_bed to true query region
+    mem_bed['start'] = mem_bed['start'].clip(lower=true_start)
+    mem_bed['end'] = mem_bed['end'].clip(upper=true_end)
+    mem_bed[['start', 'end']] = mem_bed[['start','end']].sub(true_start) # adjust mem_bed positions to query coords
 
-    # adjust start of bed region to 0
-    mem_bed['start'] -= mb_start
-    mem_bed['end'] -= mb_start
-
-    # make rec array
-    rec_len = max(mb_end - mb_start + 1, true_end - true_start + 1)
-    rec = [num_docs] * (rec_len + start_adj)
-
-
-    for idx, values in mem_bed.iterrows():                       # iterate rows of bed file
+    # how to optimize for early stopage?
+    rec = np.full((true_end - true_start), num_docs)
+    for idx, values in mem_bed.iterrows():
         chrm, start, end, order = values
-        start, end, order = map(int, [start, end, order])
-        for idx in range(start, end):
-            if order < rec[idx]:
-                rec[idx] = order
-
-    rec = rec[start_adj : start_adj + region_len]      # NOTE: queries end to end of region, even if k-mers expands past?
+        rec[start:end][order < rec[start:end]] = order
     print(*rec, sep='\n')
+
+
+def conservation_query_baseline(k, true_start, true_end, out_file, num_docs):
+# def conservation_query(k, true_start, true_end, out_file, num_docs):
+    '''
+    Get per-position document counts.
+
+    Baseline for conservation query, does not take advantage of early-stoppage.
+
+    Run stats: user=39.12, system=5.04, elapsed=35.75, CPU=123%, MemMax=2701372
+    '''
+    mem_bed = pd.read_csv(out_file, sep='\t', header=None, names=['chrm', 'start', 'end', 'order'])
+
+    # clip mem_bed to true query region
+    mem_bed['start'] = mem_bed['start'].clip(lower=true_start)
+    mem_bed['end'] = mem_bed['end'].clip(upper=true_end)
+    mem_bed[['start', 'end']] = mem_bed[['start','end']].sub(true_start) # adjust mem_bed positions to query coords
+
+    # baseline in which, this should be equilvalent in speed to membership query
+    rec = np.zeros([num_docs+1, (true_end - true_start)])
+    rec[num_docs] = 1
+    for idx, values in mem_bed.iterrows():
+        chrm, start, end, order = values
+        rec[order, start:end] = 1
+    print(*np.argmax(rec, axis=0), sep='\n')
 
 
 def membership_query(k, true_start, true_end, out_file, num_docs):
