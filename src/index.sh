@@ -63,6 +63,7 @@ echo -e "\nConverting document array profile to overlap order MEM intervals."
 ./dap_to_ms_bed.py \
   --mems \
   --overlap \
+  --sort_lcps \
   --fai $FAI_FILE \
   --dap $DAP_FILE \
   --query $INDEX_RECORDS \
