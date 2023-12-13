@@ -56,9 +56,9 @@ def main(args):
     out_path = in_path.rstrip(".bed") + '.parquet'
     print('Input bed:', in_path)
     print('Output parquet:', out_path)
-    print('Block size:', args.block_size)
+    print('Block size (bytes):', args.block_size)
     print('Code:', args.codec)
-    compress_bed(in_path, out_path, block_size=args.block_size, codec=args.codec)
+    compress_bed(in_path, out_path, block_size=int(args.block_size), codec=args.codec)
     print('DONE!')
 
 
