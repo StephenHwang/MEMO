@@ -34,28 +34,32 @@ def parse_fai(fai_path):
     return intervals
 
 def pos_to_record(pos, record_intervals):
-    ''' Return document header and document start position for given position. '''
+    ''' Return document header and document start position for given position
+    relative to the concatenated length of the fasta file. '''
     for interval in record_intervals:
         record, start, end = interval
         if start <= pos < end:
             return record, start
-        else:
-            continue
-    if end < pos:
-        warnings.warn('Position beyond all intervals')
+        # else:          # TODO: is this necessary?
+            # continue
+    if pos >= end:
+        warnings.warn('Position beyond all intervals; ensure your fai file is from fasta of initial query.')
 
 def get_new_record(dap_row, record_intervals, sort_lcps):
     ''' Return parsed dap record. '''
-    pos, *doc_array = map(int, dap_row.split(' '))
-    header_record_start = pos_to_record(pos, record_intervals)
-    if header_record_start is None:
+    pos, *lcp_array = map(int, dap_row.split(' '))
+    record_and_offset = pos_to_record(pos, record_intervals)
+    if record_and_offset is None:
+        # User warned that position is beyond all intervals
+        # TODO: improve handling of this?
         return [None] * 3
     else:
-        header, record_start = header_record_start
+        # TODO: remove self-match first?
+        lcp_array = lcp_array[1:]                 # exclude self-match
         if sort_lcps:
-            doc_array.sort(reverse=True)
-        pos -= record_start
-        return header, pos, doc_array[1:]    # return LCPs (excluding self-match)
+            lcp_array.sort(reverse=True)
+        record, offset = record_and_offset
+        return record, pos - offset, lcp_array    # return LCPs
 
 def overlaps(a, b):
     """
@@ -66,7 +70,7 @@ def overlaps(a, b):
     if interval_end > interval_start:
         return interval_start, interval_end
 
-def print_dap_as_ms_bed(dap_stream, query, record_intervals, sort_lcps):
+def print_dap_as_ms_bed(dap_stream, record_intervals, sort_lcps):
     '''
     Parse document array profile and print the matching statistcs to stdout
     as bed-records.
@@ -74,15 +78,17 @@ def print_dap_as_ms_bed(dap_stream, query, record_intervals, sort_lcps):
     Example DAP row:
         pos, document_array
         [3,  65535, 13, 13, 13, 12]
+
+    Output:
+        TODO
     '''
     for dap_row in dap_stream:
-        header, pos, doc_array = get_new_record(next(dap_row), record_intervals, sort_lcps)
-        if header not in query:   # skip rows not in query
-            continue
-        for order_ms, lcp in enumerate(doc_array, start=1):
-            print('\t'.join(map(str, [header, pos, pos+lcp, order_ms])))
+        # header, pos, doc_array = get_new_record(next(dap_row), record_intervals, sort_lcps)
+        header, pos, doc_array = get_new_record(dap_row, record_intervals, sort_lcps)
+        for annot, lcp in enumerate(doc_array, start=1):
+            print('\t'.join(map(str, [header, pos, pos+lcp, annot])))
 
-def print_dap_as_mem_bed(dap_stream, query, record_intervals, print_overlaps, sort_lcps):
+def print_dap_as_mem_bed(dap_stream, record_intervals, print_overlaps, sort_lcps):
     '''
     Parse document array profile and print the MEMs (or MEM overlap intervals)
     to stdout as bed-records.
@@ -106,13 +112,13 @@ def print_dap_as_mem_bed(dap_stream, query, record_intervals, print_overlaps, so
     for dap_row_next in dap_stream:
         header_next, pos_next, doc_array_next = get_new_record(dap_row_next, record_intervals, sort_lcps)
 
-        # skip if documents not in query or if comparing different documents
-        if (header_next not in query) or not (header_prev == header_curr == header_next):
+        # skip if comparing different documents
+        if not (header_prev == header_curr == header_next):
             # re-assign and move onto next record
             header_prev, pos_prev, doc_array_prev = header_curr, pos_curr, doc_array_curr
             header_curr, pos_curr, doc_array_curr = header_next, pos_next, doc_array_next
             # marks transition to new doc (instance where now the next header is in query)
-            if print_overlaps and (header_next in query):
+            if print_overlaps:
                 prev_ms_list = [[pos_next, pos_next+doc_array_next[order_ms]] for order_ms in range(len(doc_array_prev))]
             continue
 
@@ -122,9 +128,7 @@ def print_dap_as_mem_bed(dap_stream, query, record_intervals, print_overlaps, so
                                                   doc_array_next),
                                               start=1):
             lcp_prev, lcp_curr, lcp_next = doc_arrays
-
-            # check if interval is a MEM
-            if (lcp_prev <= lcp_curr):
+            if (lcp_prev <= lcp_curr): # check if interval is a MEM
                 start_curr, end_curr = pos_curr, pos_curr + lcp_curr
                 if not print_overlaps:    # print normal MEM intervals
                     print('\t'.join(map(str, [header_curr, start_curr, end_curr, order_ms])))
@@ -147,7 +151,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Takes in .fai and full document array profile and converts to bed-style MEM intervals to stdout.")
     parser.add_argument('--fai', dest='fai_path', help='path to fai file', required=True)
     parser.add_argument('--dap', dest='dap_path', help='path to full document profile', required=True)
-    parser.add_argument('--query', dest="query", nargs='+', help='query regions', required=True)
+    # parser.add_argument('--query', dest="query", nargs='+', help='query regions', required=True)
     parser.add_argument("--ms", action="store_true", default=False, dest="print_ms", help="Extract matching statistics and print to stdout (it can either MSs or MEMs, not both).")
     parser.add_argument("--mems", action="store_true", default=False, dest="print_mems", help="Extract MEMs and print to stdout (it can either MSs or MEMs, not both).")
     parser.add_argument("--overlap", action="store_true", default=False, dest="print_overlaps", help="extract overlap MEMs (can only be used when extracting MEMs).")
@@ -159,39 +163,36 @@ def check_args(args):
     """ Check that the command-line arguments are valid. """
     # Verify the files exist
     if not os.path.isfile(args.fai_path):
-        print("Error: the fai file does not exist.")
+        raise Exception("The fai file does not exist.")
         exit(1)
     if not os.path.isfile(args.dap_path):
-        print("Error: the dap file does not exist.")
+        raise Exception("The dap file does not exist.")
         exit(1)
     # Verify the files are the right type
     if not args.fai_path.endswith(".fai"):
-        print("Error: the lengths file has the incorrect file extension.")
-        exit(1)
-    if not args.dap_path.endswith(".txt"):
-        print("Error: the dap file has the incorrect file extension.")
+        raise Exception("The fai file has the incorrect file extension.")
         exit(1)
      # Verify only one of the options are chosen: MEMs or MS
     if (args.print_ms + args.print_mems) != 1:
-        print("Error: exactly one type needs to be chosen (--ms or --mems).")
+        raise Exception("Error: Either print MSs or MEMs, not both.")
         exit(1)
     # Verify if select overlaps, MEMs is also selected
     if args.print_overlaps and args.print_ms:
-        print("Error: can only print overlaps if printing MEMs.")
+        raise Exception("Error: Can only print overlaps if printing MEMs.")
         exit(1)
-
 
 def main(args):
     # input paths
     fai_path = args.fai_path
     dap_path = args.dap_path
-    query = set(args.query)
+    # query = set(args.query)
     record_intervals = parse_fai(fai_path)
     dap_stream  = read_file(dap_path)
     if args.print_ms:                # print MSs
-        print_dap_as_ms_bed(dap_stream, query, record_intervals, args.sort_lcps)
+        print_dap_as_ms_bed(dap_stream, record_intervals, args.sort_lcps)
     elif args.print_mems:  # print MEMs
-        print_dap_as_mem_bed(dap_stream, query, record_intervals, args.print_overlaps, args.sort_lcps)
+        # print_dap_as_mem_bed(dap_stream, query, record_intervals, args.print_overlaps, args.sort_lcps)
+        print_dap_as_mem_bed(dap_stream, record_intervals, args.print_overlaps, args.sort_lcps)
 
 
 if __name__ == "__main__":
