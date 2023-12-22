@@ -48,18 +48,11 @@ def pos_to_record(pos, record_intervals):
 def get_new_record(dap_row, record_intervals, sort_lcps):
     ''' Return parsed dap record. '''
     pos, *lcp_array = map(int, dap_row.split(' '))
-    record_and_offset = pos_to_record(pos, record_intervals)
-    if record_and_offset is None:
-        # User warned that position is beyond all intervals
-        # TODO: improve handling of this?
-        return [None] * 3
-    else:
-        # TODO: remove self-match first?
-        lcp_array = lcp_array[1:]                 # exclude self-match
-        if sort_lcps:
-            lcp_array.sort(reverse=True)
-        record, offset = record_and_offset
-        return record, pos - offset, lcp_array    # return LCPs
+    record, offset = pos_to_record(pos, record_intervals)
+    lcp_array = lcp_array[1:]                 # exclude self-match
+    if sort_lcps:
+        lcp_array.sort(reverse=True)
+    return record, pos - offset, lcp_array    # return LCPs
 
 def overlaps(a, b):
     """
