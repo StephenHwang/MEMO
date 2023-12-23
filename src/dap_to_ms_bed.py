@@ -33,7 +33,6 @@ def parse_fai(fai_path):
         intervals.append((header, csum, csum := csum+int(length)))
     return intervals
 
-
 def print_dap_as_ms_bed(dap_stream, record_intervals, sort_lcps):
     '''
     Parse document array profile and print the matching statistcs to stdout
@@ -53,18 +52,25 @@ def print_dap_as_ms_bed(dap_stream, record_intervals, sort_lcps):
             print('\t'.join(map(str, [header, pos, pos+lcp, annot_idx+1])))
 
 
+class print_dap_as_mem_bed:
+    '''
+    Parse document array profile and print the MEMs (or MEM overlap intervals) to stdout as bed-records.
 
-class dap_conversion:
-    ''' asdf. '''
+    Rule constituting a MEM:
+        - prev_lcp <= curr_lcp
+
+    Example DAP row:
+        pos, document_array
+        [3,  65535, 13, 13, 13, 12]
+    '''
 
     def __init__(self, dap_stream, record_intervals, print_overlaps, sort_lcps):
-        ''' '''
+        ''' Initialize DAP and MEM attributes. '''
         self.dap_stream = dap_stream
         self.record_intervals = record_intervals
         self.print_overlaps = print_overlaps
         self.sort_lcps = sort_lcps
-        # something to store prev of same order
-        self.mem_intervals = {}
+        self.prev_mem_intervals_by_order = {}
 
     def pos_to_record(self, pos):
         ''' Return document header and document start position for given position
@@ -76,13 +82,13 @@ class dap_conversion:
             raise Exception('Position beyond all intervals; ensure your fai file is from fasta of initial query.')
 
     def get_new_record(self, dap_row):
-        ''' Return parsed dap record. '''
+        ''' Return parsed dap record row. '''
         pos, *lcp_array = map(int, dap_row.split(' '))
         record, offset = self.pos_to_record(pos)
         lcp_array = lcp_array[1:]                 # exclude self-match
         if self.sort_lcps:
             lcp_array.sort(reverse=True)
-        return record, pos - offset, lcp_array    # return LCPs
+        return record, pos - offset, lcp_array
 
     def overlaps(self, a, b):
         ''' Return the overlap interval beteween a and b, else None. '''
@@ -92,69 +98,32 @@ class dap_conversion:
             return interval_start, interval_end
 
     def print_interval(self, header, start, end, annot):
-        ''' asdf. '''
+        ''' Print MEM or MEM overlap as a BED interval. '''
         if self.print_overlaps:  # prints the overlaps between consecutive MEMs
-            prev_interval = self.mem_intervals.get(annot)
+            prev_interval = self.prev_mem_intervals_by_order.get(annot)
             if prev_interval and (overlap := self.overlaps(prev_interval, (start, end))):  # prev interval exists and overlaps
                 print('\t'.join(map(str, [header, overlap[0], overlap[1], annot])))
-            self.mem_intervals[annot] = (start, end)
+            self.prev_mem_intervals_by_order[annot] = (start, end)
         else:
             print('\t'.join(map(str, [header, start, end, annot])))
 
-
-    def print_dap_as_mem_bed(self):
-        '''
-        Parse document array profile and print the MEMs (or MEM overlap intervals)
-        to stdout as bed-records.
-
-        Example DAP row:
-            pos, document_array
-            [3,  65535, 13, 13, 13, 12]
-
-        Rule constituting a mem (~or~):
-            1. prev <= curr
-        '''
-        # get and print MEMs of initial record
+    def dap_to_mem(self):
+        ''' Convert DAP rows to MEMs. '''
+        # Initialize and print MEMs of first record
         header_prev, pos_prev, doc_array_prev = self.get_new_record(next(self.dap_stream))
-        for annot_idx, lcp in enumerate(doc_array_prev):
-            self.print_interval(header_prev, pos_prev, pos_prev+lcp, annot_idx+1)
+        for annot_idx, lcp in enumerate(doc_array_prev, start=1):
+            self.print_interval(header_prev, pos_prev, pos_prev+lcp, annot_idx)
 
-        # track prev interval per annot_idx if printing interval overlaps
-        # TODO: check this
-        # if print_overlaps:
-            # prev_ms_list = [[pos_prev, pos_prev+doc_array_prev[annot_idx]] for annot_idx in range(len(doc_array_prev))]
-
-        # iterate through rest of records
+        # Iterate through rest of records
         for dap_row_next in self.dap_stream:
             header_curr, pos_curr, doc_array_curr = self.get_new_record(dap_row_next)
-
-            if header_prev == header_curr: # same record, check if MEM
-                for annot_idx, (lcp_prev, lcp_curr) in enumerate(zip(doc_array_prev, doc_array_curr)):  # TODO: likely vectorize this
-                    if (lcp_prev <= lcp_curr): # check if current interval is a MEM
-                        self.print_interval(header_curr, pos_curr, pos_curr+lcp_curr, annot_idx+1)
-
-            # re-assign and move onto next record
+            if header_prev == header_curr:                                                                # if same record, check if MEM
+                for annot_idx, (lcp_prev, lcp_curr) in enumerate(zip(doc_array_prev, doc_array_curr), start=1):    # TODO: vectorize this
+                    if (lcp_prev <= lcp_curr):                                                            # check if current interval is a MEM
+                        self.print_interval(header_curr, pos_curr, pos_curr+lcp_curr, annot_idx)
+            else:                                                                                         # new, reset saved MEMs for overlap MEM calculation
+                self.prev_mem_intervals_by_order = {}
             header_prev, pos_prev, doc_array_prev = header_curr, pos_curr, doc_array_curr
-
-
-                        #if print_overlaps:
-                        #    start_prev, end_prev = prev_ms_list[annot_idx]   # TODO: is this suppose to be annot_idx?, verify is of sam eorder
-                        #    overlap_interval = overlaps((start_prev, end_prev), (start_curr, end_curr))
-                        #    if overlap_interval:     # prev interval does overlap with current interval
-                        #        print('\t'.join(map(str, [header_curr, overlap_interval[0], overlap_interval[1], annot_idx+1])))
-                        #    prev_ms_list[annot_idx] = [start_curr, end_curr]   # update prev MEM
-                        # else:
-                            # print('\t'.join(map(str, [header_curr, start_curr, end_curr, annot_idx+1])))
-
-
-            ## At junction in between records in the bed, reset prev and curr intervals.
-            ## TODO: do we need to print at reset?? probably?
-            #if not (header_prev == header_curr):
-            #    # TODO print prev?
-            #    # if print_overlaps:
-            #        # prev_ms_list = [[pos_next, pos_next+doc_array_next[annot_idx]] for annot_idx in range(len(doc_array_prev))]
-            #    header_prev, pos_prev, doc_array_prev = header_curr, pos_curr, doc_array_curr
-            #    continue
 
 
 ################################################################################
@@ -167,7 +136,7 @@ def parse_arguments():
     parser.add_argument("--ms", action="store_true", default=False, dest="print_ms", help="Extract matching statistics and print to stdout (it can either MSs or MEMs, not both).")
     parser.add_argument("--mem", action="store_true", default=False, dest="print_mems", help="Extract MEMs and print to stdout (it can either MSs or MEMs, not both).")
     parser.add_argument("--overlap", action="store_true", default=False, dest="print_overlaps", help="extract overlap MEMs (can only be used when extracting MEMs).")
-    parser.add_argument("--sort_lcps", action="store_true", default=False, dest="sort_lcps", help="sort LCP row to extract order MS/MEMs.")
+    parser.add_argument("--order", action="store_true", default=False, dest="sort_lcps", help="sort LCP row to extract order MS/MEMs.")
     args = parser.parse_args()
     return args
 
@@ -193,6 +162,7 @@ def check_args(args):
         raise Exception("Error: Can only print overlaps if printing MEMs.")
         exit(1)
 
+
 def main(args):
     fai_path = args.fai_path
     dap_path = args.dap_path
@@ -201,9 +171,7 @@ def main(args):
     if args.print_ms:                # print MSs
         print_dap_as_ms_bed(dap_stream, record_intervals, args.sort_lcps)
     elif args.print_mems:  # print MEMs
-        # print_dap_as_mem_bed(dap_stream, record_intervals, args.print_overlaps, args.sort_lcps)
-        my_dap_conversion = dap_conversion(dap_stream, record_intervals, args.print_overlaps, args.sort_lcps)
-        my_dap_conversion.print_dap_as_mem_bed()
+        print_dap_as_mem_bed(dap_stream, record_intervals, args.print_overlaps, args.sort_lcps).dap_to_mem()
 
 if __name__ == "__main__":
     args = parse_arguments()
