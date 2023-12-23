@@ -33,32 +33,6 @@ def parse_fai(fai_path):
         intervals.append((header, csum, csum := csum+int(length)))
     return intervals
 
-def pos_to_record(pos, record_intervals):
-    ''' Return document header and document start position for given position
-    relative to the concatenated length of the fasta file. '''
-    for interval in record_intervals:
-        record, start, end = interval
-        if start <= pos < end:
-            return record, start
-    if pos >= end:
-        # warnings.warn('Position beyond all intervals; ensure your fai file is from fasta of initial query.')
-        raise Exception('Position beyond all intervals; ensure your fai file is from fasta of initial query.')
-
-def get_new_record(dap_row, record_intervals, sort_lcps):
-    ''' Return parsed dap record. '''
-    pos, *lcp_array = map(int, dap_row.split(' '))
-    record, offset = pos_to_record(pos, record_intervals)
-    lcp_array = lcp_array[1:]                 # exclude self-match
-    if sort_lcps:
-        lcp_array.sort(reverse=True)
-    return record, pos - offset, lcp_array    # return LCPs
-
-def overlaps(a, b):
-    ''' Return the overlap interval beteween a and b, else None. '''
-    interval_start = max(a[0], b[0])
-    interval_end = min(a[1], b[1])
-    if interval_end > interval_start:
-        return interval_start, interval_end
 
 def print_dap_as_ms_bed(dap_stream, record_intervals, sort_lcps):
     '''
@@ -78,58 +52,110 @@ def print_dap_as_ms_bed(dap_stream, record_intervals, sort_lcps):
         for annot_idx, lcp in enumerate(doc_array):
             print('\t'.join(map(str, [header, pos, pos+lcp, annot_idx+1])))
 
-def print_dap_as_mem_bed(dap_stream, record_intervals, print_overlaps, sort_lcps):
-    '''
-    Parse document array profile and print the MEMs (or MEM overlap intervals)
-    to stdout as bed-records.
 
-    Example DAP row:
-        pos, document_array
-        [3,  65535, 13, 13, 13, 12]
 
-    Rule constituting a mem (~or~):
-        1. prev <= curr
-    '''
-    # get first and second record
-    header_prev, pos_prev, doc_array_prev = get_new_record(next(dap_stream), record_intervals, sort_lcps)
-    header_curr, pos_curr, doc_array_curr = get_new_record(next(dap_stream), record_intervals, sort_lcps)
+class dap_conversion:
+    ''' asdf. '''
 
-    # track prev interval per annot_idx if printing interval overlaps
-    # TODO: check this
-    if print_overlaps:
-        prev_ms_list = [[pos_prev, pos_prev+doc_array_prev[annot_idx]] for annot_idx in range(len(doc_array_prev))]
+    def __init__(self, dap_stream, record_intervals, print_overlaps, sort_lcps):
+        ''' '''
+        self.dap_stream = dap_stream
+        self.record_intervals = record_intervals
+        self.print_overlaps = print_overlaps
+        self.sort_lcps = sort_lcps
+        # something to store prev of same order
+        self.mem_intervals = {}
 
-    # iterate through rest of records
-    for dap_row_next in dap_stream:
-        header_next, pos_next, doc_array_next = get_new_record(dap_row_next, record_intervals, sort_lcps)
+    def pos_to_record(self, pos):
+        ''' Return document header and document start position for given position
+        relative to the concatenated length of the fasta file. '''
+        for record, start, end in self.record_intervals:    # case switch statements?
+            if start <= pos < end:
+                return record, start
+        if pos >= end:
+            raise Exception('Position beyond all intervals; ensure your fai file is from fasta of initial query.')
 
-        # At junction in between records in the bed, reset prev and curr intervals.
-        # TODO: do we need to print at reset?? probably?
-        if not (header_prev == header_curr == header_next):
+    def get_new_record(self, dap_row):
+        ''' Return parsed dap record. '''
+        pos, *lcp_array = map(int, dap_row.split(' '))
+        record, offset = self.pos_to_record(pos)
+        lcp_array = lcp_array[1:]                 # exclude self-match
+        if self.sort_lcps:
+            lcp_array.sort(reverse=True)
+        return record, pos - offset, lcp_array    # return LCPs
+
+    def overlaps(self, a, b):
+        ''' Return the overlap interval beteween a and b, else None. '''
+        interval_start = max(a[0], b[0])
+        interval_end = min(a[1], b[1])
+        if interval_end > interval_start:
+            return interval_start, interval_end
+
+    def print_interval(self, header, start, end, annot):
+        ''' asdf. '''
+        if self.print_overlaps:  # prints the overlaps between consecutive MEMs
+            prev_interval = self.mem_intervals.get(annot)
+            if prev_interval and (overlap := self.overlaps(prev_interval, (start, end))):  # prev interval exists and overlaps
+                print('\t'.join(map(str, [header, overlap[0], overlap[1], annot])))
+            self.mem_intervals[annot] = (start, end)
+        else:
+            print('\t'.join(map(str, [header, start, end, annot])))
+
+
+    def print_dap_as_mem_bed(self):
+        '''
+        Parse document array profile and print the MEMs (or MEM overlap intervals)
+        to stdout as bed-records.
+
+        Example DAP row:
+            pos, document_array
+            [3,  65535, 13, 13, 13, 12]
+
+        Rule constituting a mem (~or~):
+            1. prev <= curr
+        '''
+        # get and print MEMs of initial record
+        header_prev, pos_prev, doc_array_prev = self.get_new_record(next(self.dap_stream))
+        for annot_idx, lcp in enumerate(doc_array_prev):
+            self.print_interval(header_prev, pos_prev, pos_prev+lcp, annot_idx+1)
+
+        # track prev interval per annot_idx if printing interval overlaps
+        # TODO: check this
+        # if print_overlaps:
+            # prev_ms_list = [[pos_prev, pos_prev+doc_array_prev[annot_idx]] for annot_idx in range(len(doc_array_prev))]
+
+        # iterate through rest of records
+        for dap_row_next in self.dap_stream:
+            header_curr, pos_curr, doc_array_curr = self.get_new_record(dap_row_next)
+
+            if header_prev == header_curr: # same record, check if MEM
+                for annot_idx, (lcp_prev, lcp_curr) in enumerate(zip(doc_array_prev, doc_array_curr)):  # TODO: likely vectorize this
+                    if (lcp_prev <= lcp_curr): # check if current interval is a MEM
+                        self.print_interval(header_curr, pos_curr, pos_curr+lcp_curr, annot_idx+1)
+
+            # re-assign and move onto next record
             header_prev, pos_prev, doc_array_prev = header_curr, pos_curr, doc_array_curr
-            header_curr, pos_curr, doc_array_curr = header_next, pos_next, doc_array_next
-            # marks transition to new doc (instance where now the next header is in query)
-            if print_overlaps:
-                prev_ms_list = [[pos_next, pos_next+doc_array_next[annot_idx]] for annot_idx in range(len(doc_array_prev))]
-            continue
 
-        # print MEMs with annot
-        for annot_idx, doc_arrays in enumerate(zip(doc_array_prev, doc_array_curr, doc_array_next)):
-            lcp_prev, lcp_curr, lcp_next = doc_arrays
-            if (lcp_prev <= lcp_curr): # check if interval is a MEM
-                start_curr, end_curr = pos_curr, pos_curr + lcp_curr
-                if print_overlaps:
-                    start_prev, end_prev = prev_ms_list[annot_idx]   # TODO: is this suppose to be annot_idx?, verify is of sam eorder
-                    overlap_interval = overlaps((start_prev, end_prev), (start_curr, end_curr))
-                    if overlap_interval:     # prev interval does overlap with current interval
-                        print('\t'.join(map(str, [header_curr, overlap_interval[0], overlap_interval[1], annot_idx+1])))
-                    prev_ms_list[annot_idx] = [start_curr, end_curr]   # update prev MEM
-                else:
-                    print('\t'.join(map(str, [header_curr, start_curr, end_curr, annot_idx+1])))
 
-        # re-assign and move onto next record
-        header_prev, pos_prev, doc_array_prev = header_curr, pos_curr, doc_array_curr
-        header_curr, pos_curr, doc_array_curr = header_next, pos_next, doc_array_next
+                        #if print_overlaps:
+                        #    start_prev, end_prev = prev_ms_list[annot_idx]   # TODO: is this suppose to be annot_idx?, verify is of sam eorder
+                        #    overlap_interval = overlaps((start_prev, end_prev), (start_curr, end_curr))
+                        #    if overlap_interval:     # prev interval does overlap with current interval
+                        #        print('\t'.join(map(str, [header_curr, overlap_interval[0], overlap_interval[1], annot_idx+1])))
+                        #    prev_ms_list[annot_idx] = [start_curr, end_curr]   # update prev MEM
+                        # else:
+                            # print('\t'.join(map(str, [header_curr, start_curr, end_curr, annot_idx+1])))
+
+
+            ## At junction in between records in the bed, reset prev and curr intervals.
+            ## TODO: do we need to print at reset?? probably?
+            #if not (header_prev == header_curr):
+            #    # TODO print prev?
+            #    # if print_overlaps:
+            #        # prev_ms_list = [[pos_next, pos_next+doc_array_next[annot_idx]] for annot_idx in range(len(doc_array_prev))]
+            #    header_prev, pos_prev, doc_array_prev = header_curr, pos_curr, doc_array_curr
+            #    continue
+
 
 ################################################################################
 
@@ -175,8 +201,9 @@ def main(args):
     if args.print_ms:                # print MSs
         print_dap_as_ms_bed(dap_stream, record_intervals, args.sort_lcps)
     elif args.print_mems:  # print MEMs
-        print_dap_as_mem_bed(dap_stream, record_intervals, args.print_overlaps, args.sort_lcps)
-
+        # print_dap_as_mem_bed(dap_stream, record_intervals, args.print_overlaps, args.sort_lcps)
+        my_dap_conversion = dap_conversion(dap_stream, record_intervals, args.print_overlaps, args.sort_lcps)
+        my_dap_conversion.print_dap_as_mem_bed()
 
 if __name__ == "__main__":
     args = parse_arguments()
