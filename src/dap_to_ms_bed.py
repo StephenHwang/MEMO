@@ -13,7 +13,6 @@
 #   /home/stephen/Documents/projects/langmead_lab/analysis/order_mems/bacteria_5/e_coli_pivot/full_dap.txt
 #   NZ_CP015023.1 NZ_CP015022.1
 
-import warnings
 import argparse
 import os
 
@@ -48,9 +47,8 @@ def print_dap_as_ms_bed(dap_stream, record_intervals, sort_lcps):
     '''
     for dap_row in dap_stream:
         header, pos, doc_array = get_new_record(dap_row, record_intervals, sort_lcps)
-        for annot_idx, lcp in enumerate(doc_array):
-            print('\t'.join(map(str, [header, pos, pos+lcp, annot_idx+1])))
-
+        for annot_idx, lcp in enumerate(doc_array, start=1):
+            print('\t'.join(map(str, [header, pos, pos+lcp, annot_idx])))
 
 class print_dap_as_mem_bed:
     '''
@@ -100,38 +98,34 @@ class print_dap_as_mem_bed:
     def print_interval(self, header, start, end, annot):
         ''' Print MEM or MEM overlap as a BED interval. '''
         if self.print_overlaps:  # prints the overlaps between consecutive MEMs
+            # prev interval exists and consecutive MEMs overlap
             prev_interval = self.prev_mem_intervals_by_order.get(annot)
-            if prev_interval and (overlap := self.overlaps(prev_interval, (start, end))):  # prev interval exists and overlaps
-                print('\t'.join(map(str, [header, overlap[0], overlap[1], annot])))
+            if prev_interval and (overlap := self.overlaps(prev_interval, (start, end))):
+                print('\t'.join(map(str, [header, *overlap, annot])))
             self.prev_mem_intervals_by_order[annot] = (start, end)
         else:
             print('\t'.join(map(str, [header, start, end, annot])))
 
     def print_current_dap_row(self, header, pos, doc_array):
-        ''' asdf. '''
+        ''' Print whole dap record row as BED intervals. '''
         for annot_idx, lcp in enumerate(doc_array, start=1):
             self.print_interval(header, pos, pos+lcp, annot_idx)
 
-
     def dap_to_mem(self):
         ''' Convert DAP rows to MEMs. '''
-        # Initialize and print MEMs of first record
-        header_prev, pos_prev, doc_array_prev = self.get_new_record(next(self.dap_stream))
-        self.print_current_dap_row(header_prev, pos_prev, doc_array_prev)
-
-        # Iterate through rest of records
-        for dap_row_next in self.dap_stream:
+        header_prev = None                        # Initial row MEM printing, as if transitioning records
+        for dap_row_next in self.dap_stream:      # Iterate through record rows of DAP
             header_curr, pos_curr, doc_array_curr = self.get_new_record(dap_row_next)
-            if header_prev == header_curr:                                                                # same record, check if MEM
-                for annot_idx, (lcp_prev, lcp_curr) in enumerate(zip(doc_array_prev, doc_array_curr), start=1):    # TODO: vectorize this
-                    if (lcp_prev <= lcp_curr):                                                            # check if current interval is a MEM
+            if header_prev == header_curr:        # same record, check if MEM
+                for annot_idx, (lcp_prev, lcp_curr) in enumerate(zip(doc_array_prev, doc_array_curr), start=1):
+                    if (lcp_prev <= lcp_curr):    # check if interval is a MEM
                         self.print_interval(header_curr, pos_curr, pos_curr+lcp_curr, annot_idx)
-            else:                                                                                         # new record, reset saved MEMs and print inital MEM
-                # NOTE: we do NOT print the prev (last in record) row as valid MEMs
-                #       we DO print the first row (in record) as valid MEMs
+            else:    # new record, reset saved MEMs and print first row (of file or record transition) as valid MEMs
+                     # NOTE: we do NOT print the prev (last in record) row as valid MEMs
                 self.prev_mem_intervals_by_order = {}
                 self.print_current_dap_row(header_curr, pos_curr, doc_array_curr)
             header_prev, pos_prev, doc_array_prev = header_curr, pos_curr, doc_array_curr
+
 
 
 ################################################################################
