@@ -3,10 +3,10 @@
 # Name: dap_to_bed.py
 # Description: This script converts full document profile to a bed file of
 #              matching statistics for given genome.
-# Date: Mar 12, 2023
+# Date: Dec 23, 2023
 #
 # Run:
-#   ./dap_to_ms_bed.py --mems --fai input.fna.fai --dap full_dap.txt > file.out
+#   ./dap_to_ms_bed.py --mem --fai input.fna.fai --dap full_dap.txt > file.out
 #
 # Example data:
 #   /home/stephen/Documents/projects/langmead_lab/analysis/order_mems/bacteria_5/e_coli_pivot/input.fna.fai
@@ -107,22 +107,30 @@ class print_dap_as_mem_bed:
         else:
             print('\t'.join(map(str, [header, start, end, annot])))
 
+    def print_current_dap_row(self, header, pos, doc_array):
+        ''' asdf. '''
+        for annot_idx, lcp in enumerate(doc_array, start=1):
+            self.print_interval(header, pos, pos+lcp, annot_idx)
+
+
     def dap_to_mem(self):
         ''' Convert DAP rows to MEMs. '''
         # Initialize and print MEMs of first record
         header_prev, pos_prev, doc_array_prev = self.get_new_record(next(self.dap_stream))
-        for annot_idx, lcp in enumerate(doc_array_prev, start=1):
-            self.print_interval(header_prev, pos_prev, pos_prev+lcp, annot_idx)
+        self.print_current_dap_row(header_prev, pos_prev, doc_array_prev)
 
         # Iterate through rest of records
         for dap_row_next in self.dap_stream:
             header_curr, pos_curr, doc_array_curr = self.get_new_record(dap_row_next)
-            if header_prev == header_curr:                                                                # if same record, check if MEM
+            if header_prev == header_curr:                                                                # same record, check if MEM
                 for annot_idx, (lcp_prev, lcp_curr) in enumerate(zip(doc_array_prev, doc_array_curr), start=1):    # TODO: vectorize this
                     if (lcp_prev <= lcp_curr):                                                            # check if current interval is a MEM
                         self.print_interval(header_curr, pos_curr, pos_curr+lcp_curr, annot_idx)
-            else:                                                                                         # new, reset saved MEMs for overlap MEM calculation
+            else:                                                                                         # new record, reset saved MEMs and print inital MEM
+                # NOTE: we do NOT print the prev (last in record) row as valid MEMs
+                #       we DO print the first row (in record) as valid MEMs
                 self.prev_mem_intervals_by_order = {}
+                self.print_current_dap_row(header_curr, pos_curr, doc_array_curr)
             header_prev, pos_prev, doc_array_prev = header_curr, pos_curr, doc_array_curr
 
 
