@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 #
 # Name: decode_parse.py
-# Description: This script decodes the text ce from its dict.txt and .parse
+# Description: This script decodes a text from its dict.txt and .parse
 #
 # Date: Jan 23, 2024
 #
 # Run:
-#   ./decode_parse.py --dict dict.txt --parse _.parse --window 10 > out.txt
+#   ./decode_parse.py --dict dict.txt --parse _.parse --window N > out.txt
 
 import argparse
-import os
 import numpy as np
 
 def reconstruct_text(dict_path, parse_path, wsize):
@@ -32,8 +31,8 @@ def reconstruct_text(dict_path, parse_path, wsize):
 ################################################################################
 
 def parse_arguments():
-    """ Parse and return the command-line arguments. """
-    parser = argparse.ArgumentParser(description="Takes in .fai and full document array profile and converts to bed-style MEM intervals to stdout.")
+    ''' Parse and return the command-line arguments. '''
+    parser = argparse.ArgumentParser(description="Decodes a text from it's dict.txt, .parse, and parse window size to stdout.")
     parser.add_argument('--dict', dest='dict_path', help='path to dict.txt file; made from gzip -cdfq _.dict > dict.txt', required=True)
     parser.add_argument('--parse', dest='parse_path', help='path to .parse file', required=True)
     parser.add_argument('--wsize', dest='wsize', default=10, help='[10] parse window size', required=False)
