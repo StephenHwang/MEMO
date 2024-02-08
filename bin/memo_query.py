@@ -71,8 +71,64 @@ def merge_intervals(result, num_docs):
     return merged_sorted_array
 
 
+
+def conservation_query(mem_arr, k, true_start, true_end, out_file, num_docs):
+    '''
+    Get per-position document counts.
+
+    Run stats: user=44.61, system=4.87, elapsed=41.21, CPU=120%, MemMax=2814528
+    '''
+    bed_min = min(mem_arr[:,0])
+    bed_max = max(mem_arr[:,1])
+    mem_arr[:, 0:2] -= bed_min  # adjust mem_arr file
+    mem_arr[:, 1] -= k          # then "shadow cast" k
+    rec = np.full((bed_max - bed_min), num_docs)
+
+    # loop over mem_arr performing the conservation query
+    for start, end, order in mem_arr:
+        if end < start:  # then draw Xs
+            end_ceil = max(0,end)
+            rec[end_ceil:start][order < rec[end_ceil:start]] = order      # TODO: verify order
+
+    # then clip the rec array
+    true_len = true_end - true_start
+    offset = max(0, int(true_start - bed_min))
+    rec = rec[offset : offset + true_len]
+    print(*rec, sep='\n')
+
+
+
+def membership_query(mem_arr, k, true_start, true_end, out_file, num_docs):
+    ''' Get per-position presence/absence, per document. '''
+    bed_min = min(mem_arr[:,0])
+    bed_max = max(mem_arr[:,1])
+    mem_arr[:, 0:2] -= bed_min  # adjust mem_arr file
+    mem_arr[:, 1] -= k          # then "shadow cast" k
+
+    rec = np.ones([num_docs, bed_max - bed_min])
+
+    # loop over mem_arr performing the conservation query
+    for start, end, order in mem_arr:
+        # if end < start:  # then draw Xs
+        end_ceil = max(0,end)
+        rec[order, end_ceil:start] = 0                            # TODO: verify order
+
+    # then clip the rec array
+    true_len = true_end - true_start
+    offset = max(0, int(true_start - bed_min))
+    rec = rec[:, offset : offset + true_len]
+    for _ in rec.T:
+        _ = map(int, _)
+        print(*_, sep=' ')
+
+
+
+
+
+
+
 # def conservation_query_unoptimal(k, true_start, true_end, out_file, num_docs):
-def conservation_query(k, true_start, true_end, out_file, num_docs):
+def conservation_query_old(k, true_start, true_end, out_file, num_docs):
     '''
     Get per-position document counts.
 
@@ -118,7 +174,7 @@ def conservation_query_baseline(k, true_start, true_end, out_file, num_docs):
     print(*np.argmax(rec, axis=0), sep='\n')
 
 
-def membership_query(k, true_start, true_end, out_file, num_docs):
+def membership_query_old(k, true_start, true_end, out_file, num_docs):
     ''' Get per-position presence/absence, per document. '''
     mem_bed = pd.read_csv(out_file, sep='\t', header=None,
                           names=['chrm', 'start', 'end', 'order'])
@@ -162,8 +218,7 @@ def main(args):
     in_file = args.in_file
     out_file = args.out_file
     num_docs = int(args.num_docs)
-    k = int(args.k)
-    k_adj = k - 1
+    k = int(args.k) # - 1  # k_adj
     genome_region = args.genome_region
     query_record, start_end = genome_region.split(':')
     query_start, query_end = map(int, start_end.split('-'))
@@ -171,16 +226,18 @@ def main(args):
     # filter pq and shadow cast
     genome_mems_arr = filter_pq(in_file, query_record, query_start, query_end)
     # save_to_file(genome_mems_arr, query_record, out_file + '.uncasted')
-    genome_mems_arr_casted = shadow_cast(genome_mems_arr, k_adj)
+    # genome_mems_arr_casted = shadow_cast(genome_mems_arr, k_adj)
 
     # save shadow casted bed file
-    save_to_file(genome_mems_arr_casted, query_record, out_file)
+    # save_to_file(genome_mems_arr_casted, query_record, out_file)
 
     # shadow cast to per-position counts
     if args.membership_query:
-        membership_query(k, query_start, query_end, out_file, num_docs)
+        # membership_query(k, query_start, query_end, out_file, num_docs)
+        membership_query(genome_mems_arr, k, query_start, query_end, out_file, num_docs)
     else:
-        conservation_query(k, query_start, query_end, out_file, num_docs)
+        # conservation_query(k, query_start, query_end, out_file, num_docs)
+        conservation_query(genome_mems_arr, k, query_start, query_end, out_file, num_docs)
 
 
 if __name__ == "__main__":
