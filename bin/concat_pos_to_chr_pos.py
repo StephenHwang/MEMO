@@ -6,7 +6,7 @@
 # Date: Jan 8, 2024
 #
 # Run:
-#   ./concat_pos_to_chr_pos.py --fai input.fna.fai -pos X
+#   ./concat_pos_to_chr_pos.py --fai input.fna.fai --pos X
 
 import argparse
 import os
