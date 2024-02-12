@@ -4,9 +4,9 @@
 #  ./memo_query.py \
 #    -b bed.parquet \
 #    -r chr:start-end \
-#    -n num_docs_in_pangenome \
 #    -k kmer_size \
-#    -o out.bed
+#    -n num_docs_in_pangenome \
+#  > out.txt
 #
 # optional: -m flag for membership query
 
@@ -36,10 +36,9 @@ def filter_pq(in_file, query_record, query_start, query_end):
                            ).to_pandas(), np.uint)
     return np.concatenate([qs_in_f_arr, f1_in_qs_arr], axis=0)
 
-def save_to_file(np_arr, query_record, out_file):
-    ''' Save np array to BED file. '''
-    # np.savetxt(out_file, np_arr, delimiter="\t", fmt=query_record+'\t%1i\t%1i\t%1i')
-    np.savetxt(out_file, np_arr, fmt=query_record+'\t%1i\t%1i\t%1i')
+def save_to_file(np_arr, query_record, save_file):
+    ''' Save np array to output save file. '''
+    np.savetxt(save_file, np_arr, fmt=query_record+'\t%1i\t%1i\t%1i')
 
 def shadow_cast(genome_omems_arr, k):
     ''' Filter parquet bed file into k-mer shadow casted intervals. '''
@@ -72,7 +71,7 @@ def merge_intervals(result, num_docs):
 
 
 
-def conservation_query(mem_arr, k, true_start, true_end, out_file, num_docs):
+def conservation_query(mem_arr, k, true_start, true_end, num_docs):
     '''
     Get per-position document counts.
 
@@ -98,13 +97,12 @@ def conservation_query(mem_arr, k, true_start, true_end, out_file, num_docs):
 
 
 
-def membership_query(mem_arr, k, true_start, true_end, out_file, num_docs):
+def membership_query(mem_arr, k, true_start, true_end, num_docs):
     ''' Get per-position presence/absence, per document. '''
     bed_min = min(mem_arr[:,0])
     bed_max = max(mem_arr[:,1])
     mem_arr[:, 0:2] -= bed_min  # adjust mem_arr file
     mem_arr[:, 1] -= k          # then "shadow cast" k
-
     rec = np.ones([num_docs, bed_max - bed_min])
 
     # loop over mem_arr performing the conservation query
@@ -123,89 +121,12 @@ def membership_query(mem_arr, k, true_start, true_end, out_file, num_docs):
 
 
 
-
-
-
-
-# def conservation_query_unoptimal(k, true_start, true_end, out_file, num_docs):
-def conservation_query_old(k, true_start, true_end, out_file, num_docs):
-    '''
-    Get per-position document counts.
-
-    Run stats: user=44.61, system=4.87, elapsed=41.21, CPU=120%, MemMax=2814528
-    '''
-    mem_bed = pd.read_csv(out_file, sep='\t', header=None, names=['chrm', 'start', 'end', 'order'])
-
-    # clip mem_bed to true query region
-    mem_bed['start'] = mem_bed['start'].clip(lower=true_start)
-    mem_bed['end'] = mem_bed['end'].clip(upper=true_end)
-    mem_bed[['start', 'end']] = mem_bed[['start','end']].sub(true_start) # adjust mem_bed positions to query coords
-
-    # how to optimize for early stopage?
-    rec = np.full((true_end - true_start), num_docs)
-    for idx, values in mem_bed.iterrows():
-        chrm, start, end, order = values
-        rec[start:end][order < rec[start:end]] = order
-    print(*rec, sep='\n')
-
-
-def conservation_query_baseline(k, true_start, true_end, out_file, num_docs):
-# def conservation_query(k, true_start, true_end, out_file, num_docs):
-    '''
-    Get per-position document counts.
-
-    Baseline for conservation query, does not take advantage of early-stoppage.
-
-    Run stats: user=39.12, system=5.04, elapsed=35.75, CPU=123%, MemMax=2701372
-    '''
-    mem_bed = pd.read_csv(out_file, sep='\t', header=None, names=['chrm', 'start', 'end', 'order'])
-
-    # clip mem_bed to true query region
-    mem_bed['start'] = mem_bed['start'].clip(lower=true_start)
-    mem_bed['end'] = mem_bed['end'].clip(upper=true_end)
-    mem_bed[['start', 'end']] = mem_bed[['start','end']].sub(true_start) # adjust mem_bed positions to query coords
-
-    # baseline in which, this should be equilvalent in speed to membership query
-    rec = np.zeros([num_docs+1, (true_end - true_start)])
-    rec[num_docs] = 1
-    for idx, values in mem_bed.iterrows():
-        chrm, start, end, order = values
-        rec[order, start:end] = 1
-    print(*np.argmax(rec, axis=0), sep='\n')
-
-
-def membership_query_old(k, true_start, true_end, out_file, num_docs):
-    ''' Get per-position presence/absence, per document. '''
-    mem_bed = pd.read_csv(out_file, sep='\t', header=None,
-                          names=['chrm', 'start', 'end', 'order'])
-    mb_start, mb_end = min(mem_bed['start']), max(mem_bed['end'])
-
-    # adjust the positions of the mem_bed to start at 0
-    mem_bed['start'] -= mb_start
-    mem_bed['end'] -= mb_start
-
-    rec_len = max(mb_end - mb_start + 1, true_end - true_end + 1)
-    rec = np.ones([num_docs, rec_len])
-
-    for idx, values in mem_bed.iterrows():
-        chrm, start, end, order = values
-        start, end, order = map(int, [start, end, order])
-        rec[order, start:end] = 0
-
-    rec = adjust_margins(true_start, true_end, mb_start, mb_end, rec)
-    for _ in rec.T:
-        _ = map(int, _)
-        print(*_, sep=' ')
-
-
-
 ################################################################################
 
 def parse_arguments():
     """ Parse and return the command-line arguments. """
     parser = argparse.ArgumentParser(description="Extract and query overlap MEMs for k-mer presence/absence.")
     parser.add_argument('-b', '--pq_bed_file', dest='in_file', help='parquet bed file', required=True)
-    parser.add_argument('-o', '--out_file', dest='out_file', help='output bed file', required=True)
     parser.add_argument('-n', '--ndocs', dest='num_docs', help='total number of genomes in the pangenome', required=True)
     parser.add_argument('-k', '--kmer_size', dest='k', help='k-mer size', required=True)
     parser.add_argument('-r', '--genome_region', dest='genome_region', help='genome region, formatted as record:start-end', required=True)
@@ -216,28 +137,20 @@ def parse_arguments():
 
 def main(args):
     in_file = args.in_file
-    out_file = args.out_file
     num_docs = int(args.num_docs)
     k = int(args.k) # - 1  # k_adj
     genome_region = args.genome_region
     query_record, start_end = genome_region.split(':')
     query_start, query_end = map(int, start_end.split('-'))
 
-    # filter pq and shadow cast
+    # filter pq for query region
     genome_mems_arr = filter_pq(in_file, query_record, query_start, query_end)
-    # save_to_file(genome_mems_arr, query_record, out_file + '.uncasted')
-    # genome_mems_arr_casted = shadow_cast(genome_mems_arr, k_adj)
 
-    # save shadow casted bed file
-    # save_to_file(genome_mems_arr_casted, query_record, out_file)
-
-    # shadow cast to per-position counts
+    # check containment for query
     if args.membership_query:
-        # membership_query(k, query_start, query_end, out_file, num_docs)
-        membership_query(genome_mems_arr, k, query_start, query_end, out_file, num_docs)
+        membership_query(genome_mems_arr, k, query_start, query_end, num_docs)
     else:
-        # conservation_query(k, query_start, query_end, out_file, num_docs)
-        conservation_query(genome_mems_arr, k, query_start, query_end, out_file, num_docs)
+        conservation_query(genome_mems_arr, k, query_start, query_end, num_docs)
 
 
 if __name__ == "__main__":
