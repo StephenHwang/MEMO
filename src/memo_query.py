@@ -40,36 +40,6 @@ def save_to_file(np_arr, query_record, save_file):
     ''' Save np array to output save file. '''
     np.savetxt(save_file, np_arr, fmt=query_record+'\t%1i\t%1i\t%1i')
 
-def shadow_cast(genome_omems_arr, k):
-    ''' Filter parquet bed file into k-mer shadow casted intervals. '''
-    genome_omems_arr_subset = genome_omems_arr[genome_omems_arr[:,1] >= k]
-    diff = genome_omems_arr_subset[:,1] - k
-    genome_omems_arr_subset[:,1] = genome_omems_arr_subset[:,0]
-    genome_omems_arr_subset[:,0] = diff
-    return genome_omems_arr_subset[genome_omems_arr_subset[:,0] < genome_omems_arr_subset[:,1], :]
-
-def merge_intervals(result, num_docs):
-    ''' Merge intervals. '''
-    merged_intervals = []
-    for doc_idx in range(1, num_docs):
-        # subset for recs of current doc
-        doc_idx_intervals = result[result[:,2] == doc_idx, 0:2]
-        index = 0
-        for i in range(1, len(doc_idx_intervals)):
-            if (doc_idx_intervals[index][1] >= doc_idx_intervals[i][0]):
-                doc_idx_intervals[index][1] = max(doc_idx_intervals[index][1],
-                                                  doc_idx_intervals[i][1])
-            else:
-                index += 1
-                doc_idx_intervals[index] = doc_idx_intervals[i]
-        doc_idx_intervals = doc_idx_intervals[:index+1, ]
-        merged_intervals.append( np.insert(doc_idx_intervals, doc_idx_intervals.shape[1], doc_idx, axis=1) )
-    # concat and sort
-    merged_intervals_array = np.concatenate(merged_intervals)
-    merged_sorted_array = merged_intervals_array[np.lexsort((merged_intervals_array[:,1], merged_intervals_array[:,0]))]
-    return merged_sorted_array
-
-
 
 def conservation_query(mem_arr, k, true_start, true_end, num_docs):
     '''
@@ -99,8 +69,14 @@ def conservation_query(mem_arr, k, true_start, true_end, num_docs):
 
 def membership_query(mem_arr, k, true_start, true_end, num_docs):
     ''' Get per-position presence/absence, per document. '''
-    bed_min = min(mem_arr[:,0])
-    bed_max = max(mem_arr[:,1])
+    k -= 1
+    # bed_min = int(min(mem_arr[:,0]))
+    # bed_max = int(max(mem_arr[:,1]))
+    bed_min = int(min(mem_arr[:,0].min(), true_start))
+    bed_max = int(mem_arr[:,1].max())
+    # if bed_min > true_start:
+        # bed_min = true_start
+
     mem_arr[:, 0:2] -= bed_min  # adjust mem_arr file
     mem_arr[:, 1] -= k          # then "shadow cast" k
     rec = np.ones([num_docs, bed_max - bed_min])
