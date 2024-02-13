@@ -41,59 +41,59 @@ def save_to_file(np_arr, query_record, save_file):
     np.savetxt(save_file, np_arr, fmt=query_record+'\t%1i\t%1i\t%1i')
 
 
-def conservation_query(mem_arr, k, true_start, true_end, num_docs):
+class MemoQuery:
     '''
-    Get per-position document counts.
-
-    Run stats: user=44.61, system=4.87, elapsed=41.21, CPU=120%, MemMax=2814528
     '''
-    bed_min = min(mem_arr[:,0])
-    bed_max = max(mem_arr[:,1])
-    mem_arr[:, 0:2] -= bed_min  # adjust mem_arr file
-    mem_arr[:, 1] -= k          # then "shadow cast" k
-    rec = np.full((bed_max - bed_min), num_docs)
 
-    # loop over mem_arr performing the conservation query
-    for start, end, order in mem_arr:
-        if end < start:  # then draw Xs
+    def __init__(self, mem_arr, k, true_start, true_end, num_docs, membership_query):
+        ''' Initialize DAP and MEM attributes. '''
+        self.membership_query = membership_query
+
+        bed_min = int(min(mem_arr[:,0].min(), true_start))
+        bed_max = int(mem_arr[:,1].max())
+        mem_arr[:, 0:2] -= bed_min  # adjust mem_arr file
+        mem_arr[:, 1] -= k - 1      # then "shadow cast" k
+        self.mem_arr = mem_arr
+
+        self.true_len = true_end - true_start
+        self.offset = max(0, int(true_start - bed_min))
+
+        # initialize rec array or matrix
+        if membership_query: # membership
+            self.rec = np.ones([num_docs, bed_max - bed_min])
+        else:                # conservation
+            self.rec = np.full((bed_max - bed_min), num_docs)
+
+    def conservation_loop(self):
+        '''
+        loop over mem_arr performing the conservation query
+        '''
+        for start, end, order in self.mem_arr:
+            if end < start:  # then draw Xs
+                end_ceil = max(0,end)
+                self.rec[end_ceil:start][order < rec[end_ceil:start]] = order      # TODO: verify order
+
+    def membership_loop(self):
+        '''
+        loop over mem_arr performing the membership query
+        '''
+        for start, end, order in self.mem_arr:
             end_ceil = max(0,end)
-            rec[end_ceil:start][order < rec[end_ceil:start]] = order      # TODO: verify order
+            self.rec[order, end_ceil:start] = 0                                    # TODO: verify order
 
-    # then clip the rec array
-    true_len = true_end - true_start
-    offset = max(0, int(true_start - bed_min))
-    rec = rec[offset : offset + true_len]
-    print(*rec, sep='\n')
+    def memo_query(self):
+        if self.membership_query:
+            self.membership_loop()
+        else:
+            self.conservation_loop()
 
+    def print_rec(self):
+        if self.membership_query:  # membership query
+            for row in self.rec[:, self.offset : self.offset + self.true_len].T:
+                print(*map(int, row), sep=' ')
+        else:                      # conservation_query
+            print(*self.rec[self.offset : self.offset + self.true_len], sep='\n')
 
-
-def membership_query(mem_arr, k, true_start, true_end, num_docs):
-    ''' Get per-position presence/absence, per document. '''
-    k -= 1
-    # bed_min = int(min(mem_arr[:,0]))
-    # bed_max = int(max(mem_arr[:,1]))
-    bed_min = int(min(mem_arr[:,0].min(), true_start))
-    bed_max = int(mem_arr[:,1].max())
-    # if bed_min > true_start:
-        # bed_min = true_start
-
-    mem_arr[:, 0:2] -= bed_min  # adjust mem_arr file
-    mem_arr[:, 1] -= k          # then "shadow cast" k
-    rec = np.ones([num_docs, bed_max - bed_min])
-
-    # loop over mem_arr performing the conservation query
-    for start, end, order in mem_arr:
-        # if end < start:  # then draw Xs
-        end_ceil = max(0,end)
-        rec[order, end_ceil:start] = 0                            # TODO: verify order
-
-    # then clip the rec array
-    true_len = true_end - true_start
-    offset = max(0, int(true_start - bed_min))
-    rec = rec[:, offset : offset + true_len]
-    for _ in rec.T:
-        _ = map(int, _)
-        print(*_, sep=' ')
 
 
 
@@ -114,19 +114,16 @@ def parse_arguments():
 def main(args):
     in_file = args.in_file
     num_docs = int(args.num_docs)
-    k = int(args.k) # - 1  # k_adj
+    k = int(args.k)
     genome_region = args.genome_region
     query_record, start_end = genome_region.split(':')
     query_start, query_end = map(int, start_end.split('-'))
 
     # filter pq for query region
     genome_mems_arr = filter_pq(in_file, query_record, query_start, query_end)
-
-    # check containment for query
-    if args.membership_query:
-        membership_query(genome_mems_arr, k, query_start, query_end, num_docs)
-    else:
-        conservation_query(genome_mems_arr, k, query_start, query_end, num_docs)
+    my_memo_query = MemoQuery(genome_mems_arr, k, query_start, query_end, num_docs, args.membership_query)
+    my_memo_query.memo_query()
+    my_memo_query.print_rec()
 
 
 if __name__ == "__main__":
