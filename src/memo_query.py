@@ -42,8 +42,7 @@ def save_to_file(np_arr, query_record, save_file):
 
 
 class MemoQuery:
-    '''
-    '''
+    ''' MEMO query for membership or conservation of k-mers. '''
 
     def __init__(self, mem_arr, k, true_start, true_end, num_docs, membership_query):
         ''' Initialize DAP and MEM attributes. '''
@@ -65,36 +64,32 @@ class MemoQuery:
             self.rec = np.full((bed_max - bed_min), num_docs)
 
     def conservation_loop(self):
-        '''
-        loop over mem_arr performing the conservation query
-        '''
+        ''' Loop over MEM array recording k-mer casting for each order. '''
         for start, end, order in self.mem_arr:
             if end < start:  # then draw Xs
                 end_ceil = max(0,end)
                 self.rec[end_ceil:start][order < self.rec[end_ceil:start]] = order      # TODO: verify order
 
     def membership_loop(self):
-        '''
-        loop over mem_arr performing the membership query
-        '''
+        ''' Loop over MEM array recording k-mer casting for each document. '''
         for start, end, order in self.mem_arr:
             end_ceil = max(0,end)
             self.rec[order, end_ceil:start] = 0                                    # TODO: verify order
 
     def memo_query(self):
+        ''' Peform MEMO membership or conservation query.'''
         if self.membership_query:
             self.membership_loop()
         else:
             self.conservation_loop()
 
     def print_rec(self):
+        ''' Print output to stdout. '''
         if self.membership_query:  # membership query
             for row in self.rec[:, self.offset : self.offset + self.true_len].T:
                 print(*map(int, row), sep=' ')
         else:                      # conservation_query
             print(*self.rec[self.offset : self.offset + self.true_len], sep='\n')
-
-
 
 
 ################################################################################
