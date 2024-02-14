@@ -71,7 +71,7 @@ class MemoQuery:
         for start, end, order in self.mem_arr:
             if end < start:  # then draw Xs
                 end_ceil = max(0,end)
-                self.rec[end_ceil:start][order < rec[end_ceil:start]] = order      # TODO: verify order
+                self.rec[end_ceil:start][order < self.rec[end_ceil:start]] = order      # TODO: verify order
 
     def membership_loop(self):
         '''
