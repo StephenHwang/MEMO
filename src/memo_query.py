@@ -20,23 +20,12 @@ import os
 def filter_pq(in_file, query_record, query_start, query_end):
     ''' Filter parquet bed file into k-mer shadow casted intervals. '''
     pq_ds = ds.dataset(in_file, format="parquet")
-
-    # og (non-inclusive)
     qs_in_f_filter = ((ds.field('f0') == query_record) &
                       (ds.field('f1') <= query_start) &
                       (ds.field('f2') >  query_start))
     f1_in_qs_filter = ((ds.field('f0') == query_record) &
                        (ds.field('f1') >  query_start) &
                        (ds.field('f1') <  query_end))
-
-    ## try (inclusive)
-    #qs_in_f_filter = ((ds.field('f0') == query_record) &
-    #                  (ds.field('f1') <= query_start) &
-    #                  (ds.field('f2') >= query_start))
-    #f1_in_qs_filter = ((ds.field('f0') == query_record) &
-    #                   (ds.field('f1') >  query_start) &
-    #                   (ds.field('f1') <= query_end))
-
     qs_in_f_arr = np.array(pq_ds.to_table(
                            filter=qs_in_f_filter,
                            columns=['f1', 'f2', 'f3']
@@ -47,7 +36,8 @@ def filter_pq(in_file, query_record, query_start, query_end):
                            ).to_pandas(), np.uint)
     return np.concatenate([qs_in_f_arr, f1_in_qs_arr], axis=0)
 
-def save_to_file(np_arr, query_record, save_file):
+
+def save_to_bed_file(np_arr, query_record, save_file):
     ''' Save np array to output save file. '''
     np.savetxt(save_file, np_arr, fmt=query_record+'\t%1i\t%1i\t%1i')
 
@@ -59,61 +49,25 @@ class MemoQuery:
         ''' Initialize DAP and MEM attributes. '''
         self.membership_query = membership_query
 
-        # import IPython; IPython.embed()  # TODO
-
-        true_len = true_end - true_start    # TODO: check if this is right length
-        # bed_max = int(mem_arr[:,1].max())
-        # bed_min = int(min(mem_arr[:,0].min(), true_start))
-
-        # bed_min = int(mem_arr[:,0].min())
-        # bed_min = mem_arr[:,0].min()
-
+        true_len = true_end - true_start
         mem_arr = mem_arr.astype('int64')
         mem_arr[:, 0:2] -= true_start  # re-center mem intervals (start, ends) to query region
-        mem_arr[:, 1] -= k - 1      # then "shadow cast" k
+        mem_arr[:, 1] -= k - 1         # then "shadow cast" k
         mem_arr[:, 0:2] = mem_arr[:, 0:2].clip(min=0, max=true_len)
         self.mem_arr = mem_arr
 
-        # bed_offset = min(bed_min, true_start)
-        # mem_arr[:, 0:2] -= bed_offset  # re-center mem intervals (start, ends) to offset between true and min bed interval
-        # mem_arr[:, 1] -= k - 1      # then "shadow cast" k
-
-
-
-        #if true_start < bed_min:
-        #    offset = 0
-        #elif true_start > bed_min:
-        #    offset = true_start - bed_min
-        #else:   # true_start == bed_min
-        #    offset = 0
-        ## self.offset = max(0, int(true_start - bed_min))
-        ## len_of_arr = offset + true_len
-        ## initialize rec array or matrix
-
-
         if membership_query: # membership
-            # self.rec = np.ones([num_docs, bed_max - bed_min])
             self.rec = np.ones([num_docs, true_len])
         else:                # conservation
-            # self.rec = np.full((bed_max - bed_min), num_docs)
             self.rec = np.full(true_len, num_docs)
-
-
 
     def conservation_loop(self):
         ''' Loop over MEM array recording k-mer casting for each order. '''
-        # for start, end, order in self.mem_arr:
-            # if end < start:  # then draw Xs
-                # end_ceil = max(0,end)
-                # self.rec[end_ceil:start][order < self.rec[end_ceil:start]] = order      # TODO: verify order
         for start, casted_end, order in self.mem_arr:
             self.rec[casted_end:start][order < self.rec[casted_end:start]] = order
 
     def membership_loop(self):
         ''' Loop over MEM array recording k-mer casting for each document. '''
-        # for start, end, order in self.mem_arr:
-            # end_ceil = max(0,end)
-            # self.rec[order, end_ceil:start] = 0
         for start, casted_end, order in self.mem_arr:
             self.rec[order, casted_end:start] = 0
 
@@ -126,10 +80,10 @@ class MemoQuery:
 
     def print_rec(self):
         ''' Print output to stdout. '''
-        if self.membership_query:  # membership query
+        if self.membership_query:  # membership
             for row in self.rec.T:
                 print(*map(int, row), sep=' ')
-        else:                      # conservation_query
+        else:                      # conservation
             print(*self.rec, sep='\n')
 
 
@@ -157,7 +111,7 @@ def main(args):
 
     # filter pq for query region
     genome_mems_arr = filter_pq(in_file, query_record, query_start, query_end)
-    # save_to_file(genome_mems_arr, query_record, 'pq_hla.new.bed')
+    # save_to_bed_file(genome_mems_arr, query_record, 'pq_hla.new.bed')
     my_memo_query = MemoQuery(genome_mems_arr, k, query_start, query_end, num_docs, args.membership_query)
     my_memo_query.memo_query()
     my_memo_query.print_rec()
