@@ -61,18 +61,23 @@ class MemoQuery:
 
         # import IPython; IPython.embed()  # TODO
 
-        true_len = true_end - true_start
+        true_len = true_end - true_start    # TODO: check if this is right length
         # bed_max = int(mem_arr[:,1].max())
         # bed_min = int(min(mem_arr[:,0].min(), true_start))
 
+        # bed_min = int(mem_arr[:,0].min())
+        # bed_min = mem_arr[:,0].min()
+
         mem_arr = mem_arr.astype('int64')
-        bed_min = int(mem_arr[:,0].min())
-        bed_offset = min(bed_min, true_start)
-        mem_arr[:, 0:2] -= bed_offset  # re-center mem intervals (start, ends) to offset between true and min bed interval
+        mem_arr[:, 0:2] -= true_start  # re-center mem intervals (start, ends) to query region
         mem_arr[:, 1] -= k - 1      # then "shadow cast" k
         mem_arr[:, 0:2] = mem_arr[:, 0:2].clip(min=0, max=true_len)
-
         self.mem_arr = mem_arr
+
+        # bed_offset = min(bed_min, true_start)
+        # mem_arr[:, 0:2] -= bed_offset  # re-center mem intervals (start, ends) to offset between true and min bed interval
+        # mem_arr[:, 1] -= k - 1      # then "shadow cast" k
+
 
 
         #if true_start < bed_min:
@@ -122,11 +127,9 @@ class MemoQuery:
     def print_rec(self):
         ''' Print output to stdout. '''
         if self.membership_query:  # membership query
-            # for row in self.rec[:, self.offset : self.offset + self.true_len].T:
             for row in self.rec.T:
                 print(*map(int, row), sep=' ')
         else:                      # conservation_query
-            # print(*self.rec[self.offset : self.offset + self.true_len], sep='\n')
             print(*self.rec, sep='\n')
 
 
@@ -155,11 +158,10 @@ def main(args):
     # filter pq for query region
     genome_mems_arr = filter_pq(in_file, query_record, query_start, query_end)
     # save_to_file(genome_mems_arr, query_record, 'pq_hla.new.bed')
-
     my_memo_query = MemoQuery(genome_mems_arr, k, query_start, query_end, num_docs, args.membership_query)
     my_memo_query.memo_query()
     my_memo_query.print_rec()
-#
+
 
 if __name__ == "__main__":
     args = parse_arguments()
