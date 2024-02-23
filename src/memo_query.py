@@ -6,12 +6,11 @@
 #    -r chr:start-end \
 #    -k kmer_size \
 #    -n num_docs_in_pangenome \
-#  > out.txt
+#    -o out.txt
 #
 # optional: -m flag for membership query
 
 import numpy as np
-import pandas as pd
 import pyarrow.dataset as ds
 import argparse
 import os
@@ -48,16 +47,14 @@ class MemoQuery:
     def __init__(self, mem_arr, k, true_start, true_end, num_docs, membership_query):
         ''' Initialize DAP and MEM attributes. '''
         self.membership_query = membership_query
-
         true_len = true_end - true_start
         mem_arr = mem_arr.astype('int64')
         mem_arr[:, 0:2] -= true_start  # re-center mem intervals (start, ends) to query region
         mem_arr[:, 1] -= k - 1         # then "shadow cast" k
         mem_arr[:, 0:2] = mem_arr[:, 0:2].clip(min=0, max=true_len)
         self.mem_arr = mem_arr
-
         if membership_query: # membership
-            self.rec = np.ones([num_docs, true_len])
+            self.rec = np.ones([true_len, num_docs])
         else:                # conservation
             self.rec = np.full(true_len, num_docs)
 
@@ -69,7 +66,7 @@ class MemoQuery:
     def membership_loop(self):
         ''' Loop over MEM array recording k-mer casting for each document. '''
         for start, casted_end, order in self.mem_arr:
-            self.rec[order, casted_end:start] = 0
+            self.rec[casted_end:start, order] = 0
 
     def memo_query(self):
         ''' Peform MEMO membership or conservation query.'''
@@ -78,13 +75,9 @@ class MemoQuery:
         else:
             self.conservation_loop()
 
-    def print_rec(self):
+    def print_rec(self, out_file):
         ''' Print output to stdout. '''
-        if self.membership_query:  # membership
-            for row in self.rec.T:
-                print(*map(int, row), sep=' ')
-        else:                      # conservation
-            print(*self.rec, sep='\n')
+        np.savetxt(out_file, self.rec, delimiter=' ', fmt='%i')
 
 
 ################################################################################
@@ -93,6 +86,7 @@ def parse_arguments():
     """ Parse and return the command-line arguments. """
     parser = argparse.ArgumentParser(description="Extract and query overlap MEMs for k-mer presence/absence.")
     parser.add_argument('-b', '--pq_bed_file', dest='in_file', help='parquet bed file', required=True)
+    parser.add_argument('-o', '--out_file', dest='out_file', help='output file', required=True)
     parser.add_argument('-n', '--ndocs', dest='num_docs', help='total number of genomes in the pangenome', required=True)
     parser.add_argument('-k', '--kmer_size', dest='k', help='k-mer size', required=True)
     parser.add_argument('-r', '--genome_region', dest='genome_region', help='genome region, formatted as record:start-end', required=True)
@@ -103,6 +97,7 @@ def parse_arguments():
 
 def main(args):
     in_file = args.in_file
+    out_file = args.out_file
     num_docs = int(args.num_docs)
     k = int(args.k)
     genome_region = args.genome_region
@@ -111,10 +106,9 @@ def main(args):
 
     # filter pq for query region
     genome_mems_arr = filter_pq(in_file, query_record, query_start, query_end)
-    # save_to_bed_file(genome_mems_arr, query_record, 'pq_hla.new.bed')
     my_memo_query = MemoQuery(genome_mems_arr, k, query_start, query_end, num_docs, args.membership_query)
     my_memo_query.memo_query()
-    my_memo_query.print_rec()
+    my_memo_query.print_rec(out_file)
 
 
 if __name__ == "__main__":
