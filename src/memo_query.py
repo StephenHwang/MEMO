@@ -57,28 +57,19 @@ class MemoQuery:
         if membership_query: # membership
             self.rec = np.ones([true_len, num_docs])
         else:                # conservation
-            # self.rec = np.full(true_len, num_docs)
             self.rec = np.zeros([true_len, num_docs+1])
             self.rec[:, num_docs] = 1
 
-    def conservation_loop(self):
-        ''' Loop over MEM array recording k-mer casting for each order. '''
-        for start, casted_end, order in self.mem_arr:
-            # self.rec[casted_end:start][order < self.rec[casted_end:start]] = order
-            self.rec[casted_end:start, order] = 1
-        self.rec = np.argmax(self.rec, axis=1)
-
-    def membership_loop(self):
-        ''' Loop over MEM array recording k-mer casting for each document. '''
-        for start, casted_end, order in self.mem_arr:
-            self.rec[casted_end:start, order] = 0
-
     def memo_query(self):
-        ''' Peform MEMO membership or conservation query.'''
+        ''' Peform MEMO membership or conservation query by recording k-mer casting for each doc/order. '''
         if self.membership_query:
-            self.membership_loop()
+            set_bit = 0
         else:
-            self.conservation_loop()
+            set_bit = 1
+        for start, casted_end, order in self.mem_arr:
+            self.rec[casted_end:start, order] = set_bit
+        if not self.membership_query:
+            self.rec = np.argmax(self.rec, axis=1)
 
     def print_rec(self, out_file):
         ''' Print output to stdout. '''
