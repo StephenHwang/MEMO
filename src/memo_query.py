@@ -55,17 +55,14 @@ class MemoQuery:
         mem_arr = mem_arr[mem_arr[:,1]  < mem_arr[:,0]]   # subset to valid intervals
         self.mem_arr = mem_arr
         if membership_query: # membership
-            self.rec = np.ones([true_len, num_docs])
+            self.rec = np.ones([true_len, num_docs], dtype='bool')
         else:                # conservation
-            self.rec = np.zeros([true_len, num_docs+1])
-            self.rec[:, num_docs] = 1
+            self.rec = np.zeros([true_len, num_docs+1], dtype='bool')
+            self.rec[:, num_docs] = True
 
     def memo_query(self):
         ''' Peform MEMO membership or conservation query by recording k-mer casting for each doc/order. '''
-        if self.membership_query:
-            set_bit = 0
-        else:
-            set_bit = 1
+        set_bit = False if self.membership_query else True
         for start, casted_end, order in self.mem_arr:
             self.rec[casted_end:start, order] = set_bit
         if not self.membership_query:
