@@ -61,32 +61,17 @@ class MemoQuery:
             self.rec = np.zeros([true_len, num_docs+1])
             self.rec[:, num_docs] = 1
 
-
-    def row_conservation_func(self, x):
-        start, casted_end, order = x
-        self.rec[casted_end:start][order < self.rec[casted_end:start]] = order
-        # np.putmask(self.rec[casted_end:start], order < self.rec[casted_end:start], order)
-        # np.place(self.rec[casted_end:start], order < self.rec[casted_end:start], order)
-        # self.rec[casted_end:start] = np.where(order > self.rec[casted_end:start], self.rec[casted_end:start], order)   # slower
-
-
     def conservation_loop(self):
         ''' Loop over MEM array recording k-mer casting for each order. '''
-        # np.apply_along_axis(self.row_conservation_func, axis=1, arr=self.mem_arr)
         for start, casted_end, order in self.mem_arr:
-            # self.rec[casted_end:start][order < self.rec[casted_end:start]] = order      # og, fastest
-            # np.place(self.rec[casted_end:start], order < self.rec[casted_end:start], order)
-            # np.putmask(self.rec[casted_end:start], order < self.rec[casted_end:start], order)
-            # self.rec[casted_end:start] = np.where(order > self.rec[casted_end:start], self.rec[casted_end:start], order)
+            # self.rec[casted_end:start][order < self.rec[casted_end:start]] = order
             self.rec[casted_end:start, order] = 1
         self.rec = np.argmax(self.rec, axis=1)
-
 
     def membership_loop(self):
         ''' Loop over MEM array recording k-mer casting for each document. '''
         for start, casted_end, order in self.mem_arr:
             self.rec[casted_end:start, order] = 0
-
 
     def memo_query(self):
         ''' Peform MEMO membership or conservation query.'''
