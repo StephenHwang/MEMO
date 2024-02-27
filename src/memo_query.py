@@ -52,21 +52,41 @@ class MemoQuery:
         mem_arr[:, 0:2] -= true_start  # re-center mem intervals (start, ends) to query region
         mem_arr[:, 1] -= k - 1         # then "shadow cast" k
         mem_arr[:, 0:2] = mem_arr[:, 0:2].clip(min=0, max=true_len)
+        mem_arr = mem_arr[mem_arr[:,1]  < mem_arr[:,0]]   # subset to valid intervals
         self.mem_arr = mem_arr
         if membership_query: # membership
             self.rec = np.ones([true_len, num_docs])
         else:                # conservation
-            self.rec = np.full(true_len, num_docs)
+            # self.rec = np.full(true_len, num_docs)
+            self.rec = np.zeros([true_len, num_docs+1])
+            self.rec[:, num_docs] = 1
+
+
+    def row_conservation_func(self, x):
+        start, casted_end, order = x
+        self.rec[casted_end:start][order < self.rec[casted_end:start]] = order
+        # np.putmask(self.rec[casted_end:start], order < self.rec[casted_end:start], order)
+        # np.place(self.rec[casted_end:start], order < self.rec[casted_end:start], order)
+        # self.rec[casted_end:start] = np.where(order > self.rec[casted_end:start], self.rec[casted_end:start], order)   # slower
+
 
     def conservation_loop(self):
         ''' Loop over MEM array recording k-mer casting for each order. '''
+        # np.apply_along_axis(self.row_conservation_func, axis=1, arr=self.mem_arr)
         for start, casted_end, order in self.mem_arr:
-            self.rec[casted_end:start][order < self.rec[casted_end:start]] = order
+            # self.rec[casted_end:start][order < self.rec[casted_end:start]] = order      # og, fastest
+            # np.place(self.rec[casted_end:start], order < self.rec[casted_end:start], order)
+            # np.putmask(self.rec[casted_end:start], order < self.rec[casted_end:start], order)
+            # self.rec[casted_end:start] = np.where(order > self.rec[casted_end:start], self.rec[casted_end:start], order)
+            self.rec[casted_end:start, order] = 1
+        self.rec = np.argmax(self.rec, axis=1)
+
 
     def membership_loop(self):
         ''' Loop over MEM array recording k-mer casting for each document. '''
         for start, casted_end, order in self.mem_arr:
             self.rec[casted_end:start, order] = 0
+
 
     def memo_query(self):
         ''' Peform MEMO membership or conservation query.'''
