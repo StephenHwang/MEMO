@@ -52,7 +52,7 @@ class MemoQuery:
         mem_arr[:, 0:2] -= true_start  # re-center mem intervals (start, ends) to query region
         mem_arr[:, 1] -= k - 1         # then "shadow cast" k
         mem_arr[:, 0:2] = mem_arr[:, 0:2].clip(min=0, max=true_len)
-        mem_arr = mem_arr[mem_arr[:,1]  < mem_arr[:,0]]   # subset to valid intervals
+        mem_arr = mem_arr[mem_arr[:,1] <= mem_arr[:,0]]   # subset to valid intervals
         self.mem_arr = mem_arr
         if membership_query: # membership
             self.rec = np.ones([true_len, num_docs], dtype='bool')
@@ -68,15 +68,12 @@ class MemoQuery:
         if not self.membership_query:
             self.rec = np.argmax(self.rec, axis=1)
 
-    def print_rec(self, out_file):
+    def print_res(self, out_file):
         ''' Print output to stdout. '''
         if self.membership_query:
             np.savetxt(out_file, self.rec.astype('byte'), delimiter=' ', fmt='%i')
-            # for row in self.rec:
-                # print(*map(int, row), sep=' ')
         else:
             print(*self.rec, sep='\n', file=open(out_file, 'w'))
-            # np.savetxt(out_file, self.rec, delimiter=' ', fmt='%i')
 
 
 ################################################################################
@@ -88,7 +85,7 @@ def parse_arguments():
     parser.add_argument('-o', '--out_file', dest='out_file', help='output file', required=True)
     parser.add_argument('-n', '--ndocs', dest='num_docs', help='total number of genomes in the pangenome', required=True)
     parser.add_argument('-k', '--kmer_size', dest='k', help='k-mer size', required=True)
-    parser.add_argument('-r', '--genome_region', dest='genome_region', help='genome region, formatted as record:start-end', required=True)
+    parser.add_argument('-r', '--genome_region', dest='genome_region', help='genome region, formatted as chr:start-end', required=True)
     parser.add_argument('-m', '--membership_query', dest='membership_query', action='store_true', default=False,
                         help='Perform membership query instead of conservation query')
     args = parser.parse_args()
@@ -102,12 +99,10 @@ def main(args):
     genome_region = args.genome_region
     query_record, start_end = genome_region.split(':')
     query_start, query_end = map(int, start_end.split('-'))
-
-    # filter pq for query region
-    genome_mems_arr = filter_pq(in_file, query_record, query_start, query_end)
+    genome_mems_arr = filter_pq(in_file, query_record, query_start, query_end+k)
     my_memo_query = MemoQuery(genome_mems_arr, k, query_start, query_end, num_docs, args.membership_query)
     my_memo_query.memo_query()
-    my_memo_query.print_rec(out_file)
+    my_memo_query.print_res(out_file)
 
 
 if __name__ == "__main__":
