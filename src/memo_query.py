@@ -70,7 +70,13 @@ class MemoQuery:
 
     def print_rec(self, out_file):
         ''' Print output to stdout. '''
-        np.savetxt(out_file, self.rec, delimiter=' ', fmt='%i')
+        if self.membership_query:
+            np.savetxt(out_file, self.rec.astype('byte'), delimiter=' ', fmt='%i')
+            # for row in self.rec:
+                # print(*map(int, row), sep=' ')
+        else:
+            print(*self.rec, sep='\n', file=open(out_file, 'w'))
+            # np.savetxt(out_file, self.rec, delimiter=' ', fmt='%i')
 
 
 ################################################################################
