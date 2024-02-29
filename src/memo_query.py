@@ -14,7 +14,7 @@ import numpy as np
 import pyarrow.dataset as ds
 import argparse
 import os
-
+from numba import jit
 
 def filter_pq(in_file, query_record, query_start, query_end):
     ''' Filter parquet bed file into k-mer shadow casted intervals. '''
@@ -35,45 +35,40 @@ def filter_pq(in_file, query_record, query_start, query_end):
                            ).to_pandas(), np.uint)
     return np.concatenate([qs_in_f_arr, f1_in_qs_arr], axis=0)
 
-
 def save_to_bed_file(np_arr, query_record, save_file):
     ''' Save np array to output save file. '''
     np.savetxt(save_file, np_arr, fmt=query_record+'\t%1i\t%1i\t%1i')
 
+def memo_init(mem_arr, k, true_start, true_end, num_docs, membership_query):
+    ''' Initialize MEM intervals and result array. '''
+    true_len = true_end - true_start
+    mem_arr = mem_arr.astype('int64')
+    mem_arr[:, 0:2] -= true_start  # re-center mem intervals (start, ends) to query region
+    mem_arr[:, 1] -= k - 1         # then "shadow cast" k
+    mem_arr[:, 0:2] = mem_arr[:, 0:2].clip(min=0, max=true_len)
+    mem_arr = mem_arr[mem_arr[:,1] <= mem_arr[:,0]]   # subset to valid intervals
+    if membership_query: # membership
+        rec = np.ones([true_len, num_docs], dtype='bool')
+    else:                # conservation
+        rec = np.zeros([true_len, num_docs+1], dtype='bool')
+        rec[:, num_docs] = True
+    return mem_arr, rec
 
-class MemoQuery:
-    ''' MEMO query for membership or conservation of k-mers. '''
+@jit
+def memo_query(mem_arr, rec, membership_query):
+    ''' Peform MEMO membership or conservation query by recording k-mer casting for each doc/order. '''
+    set_bit = False if membership_query else True
+    for start, casted_end, order in mem_arr:
+        rec[casted_end:start, order] = set_bit
+    return rec
 
-    def __init__(self, mem_arr, k, true_start, true_end, num_docs, membership_query):
-        ''' Initialize DAP and MEM attributes. '''
-        self.membership_query = membership_query
-        true_len = true_end - true_start
-        mem_arr = mem_arr.astype('int64')
-        mem_arr[:, 0:2] -= true_start  # re-center mem intervals (start, ends) to query region
-        mem_arr[:, 1] -= k - 1         # then "shadow cast" k
-        mem_arr[:, 0:2] = mem_arr[:, 0:2].clip(min=0, max=true_len)
-        mem_arr = mem_arr[mem_arr[:,1] <= mem_arr[:,0]]   # subset to valid intervals
-        self.mem_arr = mem_arr
-        if membership_query: # membership
-            self.rec = np.ones([true_len, num_docs], dtype='bool')
-        else:                # conservation
-            self.rec = np.zeros([true_len, num_docs+1], dtype='bool')
-            self.rec[:, num_docs] = True
-
-    def memo_query(self):
-        ''' Peform MEMO membership or conservation query by recording k-mer casting for each doc/order. '''
-        set_bit = False if self.membership_query else True
-        for start, casted_end, order in self.mem_arr:
-            self.rec[casted_end:start, order] = set_bit
-        if not self.membership_query:
-            self.rec = np.argmax(self.rec, axis=1)
-
-    def print_res(self, out_file):
-        ''' Print output to stdout. '''
-        if self.membership_query:
-            np.savetxt(out_file, self.rec.astype('byte'), delimiter=' ', fmt='%i')
-        else:
-            print(*self.rec, sep='\n', file=open(out_file, 'w'))
+def print_res(rec, out_file, membership_query):
+    ''' Output result to file. '''
+    if membership_query:
+        np.savetxt(out_file, rec.astype('byte'), delimiter=' ', fmt='%i')
+    else:
+        rec = np.argmax(rec, axis=1)
+        print(*rec, sep='\n', file=open(out_file, 'w'))
 
 
 ################################################################################
@@ -94,15 +89,20 @@ def parse_arguments():
 def main(args):
     in_file = args.in_file
     out_file = args.out_file
+    membership_query = args.membership_query
     num_docs = int(args.num_docs)
     k = int(args.k)
     genome_region = args.genome_region
     query_record, start_end = genome_region.split(':')
     query_start, query_end = map(int, start_end.split('-'))
-    genome_mems_arr = filter_pq(in_file, query_record, query_start, query_end+k)
-    my_memo_query = MemoQuery(genome_mems_arr, k, query_start, query_end, num_docs, args.membership_query)
-    my_memo_query.memo_query()
-    my_memo_query.print_res(out_file)
+
+    # extract bed region
+    genome_mems_arr = filter_pq(in_file, query_record, query_start, query_end + k)
+
+    # query
+    mem_arr, rec = memo_init(genome_mems_arr, k, query_start, query_end, num_docs, membership_query)
+    rec = memo_query(mem_arr, rec, membership_query)
+    print_res(rec, out_file, membership_query)
 
 
 if __name__ == "__main__":
