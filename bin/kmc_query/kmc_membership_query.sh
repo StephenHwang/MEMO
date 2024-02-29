@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # basic params
-# ./kmc_membership_query.sh -m /home/shwang45/vast_sjhwang/kmc_query/kmc_database_to_hprc_genome.txt -f test.fa -r record1:8-200 -o out.txt
+# ./kmc_membership_query.sh -m genome_to_kmc_database_map.txt -f test.fa -r chr:1-10 -o out.txt
 KMC_QUERY_SCRIPT=/scratch4/blangme2/sjhwang/omem/bin/kmc_query/kmc_query.out
 KMC_DATABASE_MAPPING=
 FASTA_FILE=
@@ -19,11 +19,12 @@ Usage: ./kmc_membership_query [options]
 Options:
   -m [FILE]              file containing paths to each kmc index prefix, one path per line
   -f [FILE]              fasta file
-  -r [CHR:START-END]     target query region to extract from indexed omem bed
-  -o [FILE]              output file name ['/.']
+  -r [CHR:START-END]     target query region
+  -o [FILE]              output file
 
-Note: Region is indexed as [START-END) by 0-index.
-  ie. to query a whole contig, use: 0 to samtools faidx size
+Note:
+  - Region is 1-indexed, inclusive [START-END] (to match the MEMO region START%+1, END+K-1)
+  - Uses samtools to extract the query region
 "
 exit 0
 }
