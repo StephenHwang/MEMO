@@ -5,7 +5,7 @@
 # Date: Oct 19, 2023
 #
 # Run:
-#   ./parquet_compress_bed.py -f input.bed
+#   ./parquet_compress_bed.py -f input.bed -o output.parquet
 
 import argparse
 import pyarrow as pa
@@ -38,24 +38,12 @@ def compress_bed(in_path, out_path, block_size=500_000_000, codec='ZSTD'):
             writer.write_table(next_table)
     writer.close()
 
+
 def compress_bed_all(in_path, out_path, codec='ZSTD'):
-    """ Compress bed file. """
-    df = pd.read_csv(in_path, sep='\t', names=['chr','start','end','order'])
+    """ Compress bed file all at once. """
+    df = pd.read_csv(in_path, sep='\t', names=['f0','f1','f2','f3'])
     table = pa.Table.from_pandas(df) # Convert Pandas DataFrame to PyArrow Table
     pq.write_table(table, out_path, compression=codec) # Write PyArrow Table to Parquet file
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ################################################################################
