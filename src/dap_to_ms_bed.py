@@ -11,7 +11,6 @@
 # Example data:
 #   /home/stephen/Documents/projects/langmead_lab/analysis/order_mems/bacteria_5/e_coli_pivot/input.fna.fai
 #   /home/stephen/Documents/projects/langmead_lab/analysis/order_mems/bacteria_5/e_coli_pivot/full_dap.txt
-#   NZ_CP015023.1 NZ_CP015022.1
 
 import argparse
 import os
@@ -38,8 +37,8 @@ def print_dap_as_ms_bed(dap_stream, record_intervals, sort_lcps):
     as bed-records (0-index, half-open).
 
     Example DAP row and output:
-        pos, document_array (self-match, rest of docs)
-        [3,  65535, 13, 13, 13, 12]
+        pos, document_array
+        [3,  13, 13, 13, 12]
         chr1 3 16 1
         chr1 3 16 2
         chr1 3 16 3
@@ -59,7 +58,7 @@ class print_dap_as_mem_bed:
 
     Example DAP row:
         pos, document_array
-        [3,  65535, 13, 13, 13, 12]
+        [3,  13, 13, 13, 12]
     '''
 
     def __init__(self, dap_stream, record_intervals, print_overlaps, sort_lcps):
@@ -83,7 +82,6 @@ class print_dap_as_mem_bed:
         ''' Return parsed dap record row. '''
         pos, *lcp_array = map(int, dap_row.split(' '))
         record, offset = self.pos_to_record(pos)
-        lcp_array = lcp_array[1:]                 # exclude self-match
         if self.sort_lcps:
             lcp_array.sort(reverse=True)
         return record, pos - offset, lcp_array
