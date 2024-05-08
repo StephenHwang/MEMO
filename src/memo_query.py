@@ -46,7 +46,7 @@ def memo_init(mem_arr, k, true_start, true_end, num_docs, membership_query):
     mem_arr[:, 0:2] -= true_start  # re-center mem intervals (start, ends) to query region
     mem_arr[:, 1] -= k - 1         # then "shadow cast" k
     mem_arr[:, 0:2] = mem_arr[:, 0:2].clip(min=0, max=true_len)
-    mem_arr = mem_arr[mem_arr[:,1] <= mem_arr[:,0]]   # subset to valid intervals
+    mem_arr = mem_arr[mem_arr[:,1] < mem_arr[:,0]]   # subset to valid intervals
     if membership_query: # membership
         rec = np.ones([true_len, num_docs], dtype='bool')
     else:                # conservation
