@@ -90,7 +90,7 @@ class print_dap_as_mem_bed:
         ''' Return the overlap interval beteween a and b, else None. '''
         interval_start = max(a[0], b[0])
         interval_end = min(a[1], b[1])
-        if interval_end > interval_start:
+        if interval_end >= interval_start:
             return interval_start, interval_end
 
     def print_interval(self, header, start, end, annot):
