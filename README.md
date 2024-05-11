@@ -12,8 +12,8 @@ TBD
 ### Index Creation
 TBD
 
-### Query
-Once you have created your indexes, specify your length-k, genomic region, and th etotal number of genomes in your genome (inclusive of pivot) to query k-mer membership `-m` or k-mer conservation.
+### Querying k-mer membership and conservation
+Once you have created your indexes, specify your length-k, genomic region, and th etotal number of genomes in your genome (inclusive of pivot) to k-mer conservation or  query k-mer membership `-m`.
 
 MEMO membership query:
 ```sh
@@ -36,10 +36,10 @@ src/memo_query.py \
   -o memo_conservation.txt
 ```
 
-## Visualization - Sequence Conservation
+## Visualizing sequence conservation
 <figure>
 <img src="img/memo_hla_sequence_conservation.png" alt="hprc_hla_seq_conservation"/>
-<figcaption> <p align="center">Sequence conservation of 31-mers across the Human Leucocyte Antigen locus in the HPRC pangenome.</p></figcaption>
+<figcaption> <p align="center">31-mer sequence conservation of the Human Leucocyte Antigen locus in the HPRC pangenome.</p></figcaption>
 </figure>
 
 From the MEMO conservation query, MEMO can visualize sequence conservation:
