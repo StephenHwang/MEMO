@@ -10,21 +10,31 @@ MEMO relies on <a href="https://github.com/maxrossi91/moni">MONI</a> by Massimil
 TBD
 
 dependencies:
-  python 3.11
-  pandas
-  numpy
-  plotnine
-  pyarrow
-  numba
+  python:
+    python 3.11
+    pandas
+    numpy
+    plotnine
+    pyarrow
+    numba
+  others:
+    samtools
+    seqtk
 
 
 ## Usage
 ### Index Creation
-TBD
+To create a MEMO conservation index, specify a list of genomes `-g` and an output location `-o` and prefix `-p`. The first genome in the list of genomes is the pangenome pivot. To create a MEMO membership index, include the `-m` flag.
+```sh
+./memo index \
+  -o output_dir \
+  -p output_prefix \
+  -g genome_list.txt
+```
 
 
 ### Querying k-mer membership and conservation
-Once you have created your indexes, specify your length-k `k`, genomic region `-r`, and the total number of genomes in your genome (inclusive of pivot) `-n`. Then run `memo query` for the conservation query. To run the membership query, specify with the flag `-m`.
+Once you have created your indexes, specify your length-k `k`, genomic region `-r`, and the total number of genomes in your genome (inclusive of pivot) `-n`. Then run `memo query` for the conservation query. To run the membership query, include the `-m` flag.
 ```sh
 ./memo query \
   -b index.parquet \

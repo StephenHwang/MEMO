@@ -2,12 +2,11 @@
 
 set -euo pipefail
 
-FAI_FILE=
-DAP_FILE=
-INDEX_RECORDS=
+GENOME_LIST=
 OUTPUT_DIR='.'
-OUTPUT_BEDFILE=
+OUTPUT_PREFIX=
 THREADS=1
+MEMBERSHIP_INDEX='false'
 
 usage() {
 echo \
@@ -16,12 +15,11 @@ omem index - index overlap order MEMs from a document array profile
 Usage: omem index [options]
 
 Basic options:
-  -f [FILE]              document list fai file
-  -d [FILE]              full document array
-  -r [RECORDS]           fasta records to query
+  -g [FILE]              document list
   -o [FILE]              output directory ['.']
-  -b [FILE]              output file prefix
+  -p [FILE]              output file prefix
   -t [INT]               number threads [1]
+  -m                     make membership index
 "
 exit 0
 }
@@ -31,26 +29,23 @@ if [ "$#" -eq 0 ] || [ "$1" = "-h" ]; then
 fi
 
 # parse flags
-while getopts "f:d:r:o:b:t:" OPTION
+while getopts "g:o:p:t:m" OPTION
 do
     case $OPTION in
-        f )
-            FAI_FILE=$OPTARG
-            ;;
-        d )
-            DAP_FILE=$OPTARG
-            ;;
-        r )
-            INDEX_RECORDS=$OPTARG
+        g )
+            GENOME_LIST=$OPTARG
             ;;
         o )
             OUTPUT_DIR=$OPTARG
             ;;
-        b )
-            OUTPUT_BEDFILE=$OPTARG.bed
+        p )
+            OUTPUT_PREFIX=$OPTARG
             ;;
         t )
             THREADS=$OPTARG
+            ;;
+        m )
+            MEMBERSHIP_INDEX='true'
             ;;
         * )
             usage
@@ -58,21 +53,80 @@ do
     esac
 done
 
-# Extract overlap MEM intervals
-echo -e "\nConverting document array profile to overlap order MEM intervals."
-./dap_to_ms_bed.py \
-  --mems \
-  --overlap \
-  --sort_lcps \
-  --fai $FAI_FILE \
-  --dap $DAP_FILE \
-  --query $INDEX_RECORDS \
-  > $OUTPUT_DIR/$OUTPUT_BEDFILE
+echo ""
+echo $GENOME_LIST
+echo $OUTPUT_DIR
+echo $OUTPUT_PREFIX
+echo $THREADS
+echo $MEMBERSHIP_INDEX
+echo ""
 
-# Sort, compress, and index
-echo "Sorting, compressing, and indexing interval file."
-sort -k1,1V -k2,2n -o $OUTPUT_DIR/$OUTPUT_BEDFILE $OUTPUT_DIR/$OUTPUT_BEDFILE
-bgzip -f --threads $THREADS $OUTPUT_DIR/$OUTPUT_BEDFILE
-tabix -p bed $OUTPUT_DIR/$OUTPUT_BEDFILE.gz
 
-echo -e "Output index file: $OUTPUT_DIR/$OUTPUT_BEDFILE.gz"
+# Pre-process fasta files
+#   for every non-pivot genome:
+#     reverse complement
+#     add spacer
+#   for query
+#     faidx
+
+# prep pivot
+PIVOT=$(head -n 1 genomes.txt)
+samtools faidx $PIVOT
+# now is $PIVOT.fai
+
+
+# for every genome
+# {{{
+seqtk seq -S ref_4.fa > ref_4_w_rc.fa
+samtools faidx -i ref_4_w_rc.fa $(cat ref_4_w_rc.fa | grep '^>' | tr -d '>') >> ref_4_w_rc.fa
+sed -i '' -e '/^>/ !s/$/\$/g' ref_4_w_rc.fa
+
+echo "Build ${header} index"
+moni build \
+  -r "${header_path}" -f \
+  -o "${index_dir}/${header}"
+
+echo "Finding ${query_fasta} MS on ${header} index"
+moni ms \
+  -t $THREADS \
+  -i "${index_dir}/${header}" \
+  -p ${query_fasta} \
+  -o "${index_dir}/${header}"
+
+# convert MONI.lengths to vertical format and then to DAP
+cat $MONI_LENGTHS_FILE | grep -v '^>' | tr ' ' '\n' | grep . > $OUTDIR/$(basename $LENGTHS_FILE)
+# }}}
+
+
+
+
+# then paste into DAP
+paste -d ' ' $(ls *.fasta | sort) | nl -v0 -w1 -s' ' > dap.txt
+
+# From MSs to BED files
+if [ "$MEMBERSHIP_INDEX" = true ] ; then
+  echo "Making membership index"
+  dap_to_ms_bed.py \
+    --mem \
+    --overlap \
+    --fai $PIVOT.fai \
+    --dap dap.txt \
+    > $OUTPUT_DIR/$OUTPUT_PREFIX.bed
+else
+  echo "Making conservation index"
+  dap_to_ms_bed.py \
+    --mem \
+    --order \
+    --overlap \
+    --fai $PIVOT.fai \
+    --dap dap.txt \
+    > $OUTPUT_DIR/$OUTPUT_PREFIX.bed
+fi
+
+# Compressing BED index
+echo "Compressing index."
+parquet_compress_bed.py \
+  -f $OUTPUT_DIR/$OUTPUT_PREFIX.bed \
+  -o $OUTPUT_DIR/$OUTPUT_PREFIX.parquet
+
+echo "Index creation done."
