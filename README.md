@@ -36,13 +36,18 @@ src/memo_query.py \
   -o memo_conservation.txt
 ```
 
-## Visualization
+## Visualization - Sequence Conservation
 <figure>
 <img src="img/memo_hla_sequence_conservation.png" alt="hprc_hla_seq_conservation"/>
 <figcaption> <p align="center">Sequence conservation of 31-mers across the Human Leucocyte Antigen locus in the HPRC pangenome.</p></figcaption>
 </figure>
+
 From the MEMO conservation query, MEMO can visualize sequence conservation:
 ```sh
-analysis/plot_sequence_conservation.py -i memo_conservation.txt -o plot.png
+analysis/plot_conservation.py \
+  -i memo_conservation.txt \
+  -o out.png \
+  -n num_genomes \
+  -b num_bins
 ```
 

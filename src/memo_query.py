@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #
 # Run: Extract bed-intervals overlapping query region
 #  ./memo_query.py \
