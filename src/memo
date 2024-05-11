@@ -4,13 +4,13 @@ set -euo pipefail
 usage() {
 echo \
 "
-omem: order mem toolkit
-Usage: omem <commmand> [options]
+MEMO - toolkit
+Usage: memo <commmand> [options]
 
-Main omem commands:
-  -- index         index overlap order MEMs from a document array profile
-  -- extract       extract region chr:start-end from overlap order MEM index
-  -- query         query k-mers on order MEMs of input bed file region
+MEMO commands:
+   index  - index pangenome into MEMO membership or conservation indexes
+   query  - query k-mer membership or conservation on pivot genome region
+   view   - plot sequence conservation
 "
 exit 0
 }
@@ -30,14 +30,14 @@ case $SUBCOMMAND in
     ./index.sh "$@"
     ;;
 
-  # Extract region
-  extract)
-    ./extract.sh "$@"
-    ;;
-
   # Query region
   query)
     ./query.sh "$@"
+    ;;
+
+  # Query region
+  view)
+    ./view.sh "$@"
     ;;
 
   *)
@@ -45,4 +45,3 @@ case $SUBCOMMAND in
     usage
     ;;
 esac
-

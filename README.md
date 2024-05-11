@@ -1,5 +1,7 @@
 # MEMO: MEM-based pangenome indexing for k-mer queries
-Maximal Exact Match Ordered (MEMO) is a pangenome indexing method based on maximal exact matches (MEMs) between sequences. A single MEMO index can handle arbitrary-length-k k-mer queries over pangenomic windows. MEMO performs membership queries for per-genome k-mer presence/absence and conservation queries for the number of genomes containing the k-mers in a window. MEMO achieves smaller index size and faster queries compared to k-mer-based approaches like KMC3 and PanKmer.
+Maximal Exact Match Ordered (MEMO) is a pangenome indexing method based on maximal exact matches (MEMs) between sequences.
+
+A single MEMO index can handle arbitrary-length-k k-mer queries over pangenomic windows. MEMO performs membership queries for per-genome k-mer presence/absence and conservation queries for the number of genomes containing the k-mers in a window. MEMO achieves smaller index size and faster queries compared to k-mer-based approaches like KMC3 and PanKmer.
 
 MEMO relies on <a href="https://github.com/maxrossi91/moni">MONI</a> by Massimiliano Rossi for finding pairwise matching statistics between the user-selected pivot genome and all other genomes in a pangenome.
 
@@ -7,33 +9,29 @@ MEMO relies on <a href="https://github.com/maxrossi91/moni">MONI</a> by Massimil
 ## Installation
 TBD
 
-## Usage
+dependencies:
+  python 3.11
+  pandas
+  numpy
+  plotnine
+  pyarrow
+  numba
 
+
+## Usage
 ### Index Creation
 TBD
 
+
 ### Querying k-mer membership and conservation
-Once you have created your indexes, specify your length-k, genomic region, and th etotal number of genomes in your genome (inclusive of pivot) to k-mer conservation or  query k-mer membership `-m`.
-
-MEMO membership query:
+Once you have created your indexes, specify your length-k `k`, genomic region `-r`, and the total number of genomes in your genome (inclusive of pivot) `-n`. Then run `memo query` for the conservation query. To run the membership query, specify with the flag `-m`.
 ```sh
-src/memo_query.py \
-  -m \
-  -b membership.parquet \
-  -r chr:start-end \
+./memo query \
+  -b index.parquet \
   -k k \
   -n num_genomes \
+  -r chr:start-end \
   -o memo_membership.txt
-```
-
-MEMO conservation query:
-```sh
-src/memo_query.py \
-  -b conservation.parquet \
-  -r chr:start-end \
-  -k k \
-  -n num_genomes \
-  -o memo_conservation.txt
 ```
 
 ## Visualizing sequence conservation
@@ -44,7 +42,7 @@ src/memo_query.py \
 
 From the MEMO conservation query, MEMO can visualize sequence conservation:
 ```sh
-analysis/plot_conservation.py \
+./memo view \
   -i memo_conservation.txt \
   -o out.png \
   -n num_genomes \
