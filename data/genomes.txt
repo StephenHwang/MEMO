@@ -1,0 +1,5 @@
+/Users/stephenhwang/Documents/projects/langmead_lab/omem/data/ref_1.fa
+/Users/stephenhwang/Documents/projects/langmead_lab/omem/data/ref_2.fa
+/Users/stephenhwang/Documents/projects/langmead_lab/omem/data/ref_3.fa
+/Users/stephenhwang/Documents/projects/langmead_lab/omem/data/ref_4.fa
+/Users/stephenhwang/Documents/projects/langmead_lab/omem/data/ref_5.fa
