@@ -1,5 +1,0 @@
-ref_1.fa
-ref_2.fa
-ref_3.fa
-ref_4.fa
-ref_5.fa
