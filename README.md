@@ -1,7 +1,5 @@
 # MEMO: MEM-based pangenome indexing for _k_-mer queries
-Maximal Exact Match Ordered (MEMO) is a pangenome indexing method based on maximal exact matches (MEMs) between genomes.
-
-A single MEMO index can handle arbitrary-length-_k_ _k_-mer queries over pangenomic windows. MEMO performs membership queries for per-genome _k_-mer presence/absence and conservation queries for the number of genomes containing the k-mers in a window. MEMO achieves smaller index sizes and faster queries than _k_-mer-based approaches like KMC3 and PanKmer. See the small example <a href="https://github.com/StephenHwang/MEMO/tree/master/example">here</a> on running MEMO for visualizing sequence conservation.
+Maximal Exact Match Ordered (MEMO) is a pangenome indexing method based on maximal exact matches (MEMs) between genomes. A single MEMO index can handle arbitrary-length-_k_ _k_-mer queries over pangenomic windows. MEMO performs membership queries for per-genome _k_-mer presence/absence and conservation queries for the number of genomes containing the k-mers in a window. MEMO achieves smaller index sizes and faster queries than _k_-mer-based approaches like KMC3 and PanKmer. See the small example <a href="https://github.com/StephenHwang/MEMO/tree/master/example">here</a> on running MEMO for visualizing sequence conservation.
 
 
 ## Installation
@@ -17,6 +15,18 @@ MEMO relies on the following dependencies:
     - <a href="https://github.com/maxrossi91/moni">MONI</a>
     - <a href="http://www.htslib.org/download/">samtools</a>
     - <a href="https://github.com/lh3/seqtk">seqtk</a>
+
+
+Build MONI from scratch:
+```
+sudo apt-get install -y build-essential cmake git python3 zlib1g-dev
+git clone https://github.com/maxrossi91/moni
+mkdir build
+cd build
+cmake ..
+make
+make install
+```
 
 After downloading/building the required dependencies, clone and run MEMO from its repo:
 ```
