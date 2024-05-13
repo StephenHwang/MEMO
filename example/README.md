@@ -3,7 +3,7 @@ Here is an example dataset to test MEMO.
 
 Set up files:
 ```sh
-realpath *fa > genome_list.txt
+realpath *.fa > genome_list.txt
 mkdir work
 cd ../src
 ```
@@ -16,13 +16,13 @@ Create a MEMO conservation index:
   -p test
 ```
 
-Query 3-mer conservation:
+Query 3-mer conservation (`ref_1:0-20`):
 ```sh
 ./memo query \
   -b ../example/work/test.parquet \
   -k 3 \
   -n 5 \
-  -r ref_1:0-13 \
+  -r ref_1:0-20 \
   -o ../example/work/memo_c_out.txt
 ```
 

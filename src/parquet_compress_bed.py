@@ -75,7 +75,7 @@ def main(args):
     else:
         print('Block size (bytes):', args.block_size)
         compress_bed(in_path, out_path, block_size=int(args.block_size), codec=args.codec)
-    print('DONE!')
+    print('DONE index compression')
 
 
 if __name__ == "__main__":
