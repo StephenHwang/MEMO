@@ -1,10 +1,7 @@
 # MEMO: MEM-based pangenome indexing for k-mer queries
 Maximal Exact Match Ordered (MEMO) is a pangenome indexing method based on maximal exact matches (MEMs) between sequences.
 
-A single MEMO index can handle arbitrary-length-k k-mer queries over pangenomic windows. MEMO performs membership queries for per-genome k-mer presence/absence and conservation queries for the number of genomes containing the k-mers in a window. MEMO achieves smaller index size and faster queries compared to k-mer-based approaches like KMC3 and PanKmer.
-
-MEMO depends on <a href="https://github.com/maxrossi91/moni">MONI</a> by Massimiliano Rossi for finding pairwise matching statistics between the user-selected pivot genome and all other genomes in a pangenome.
-See the small example <a href="https://github.com/StephenHwang/MEMO/tree/master/example">here</a> on running MEMO for visualizing sequence conservation.
+A single MEMO index can handle arbitrary-length-_k_ _k_-mer queries over pangenomic windows. MEMO performs membership queries for per-genome _k_-mer presence/absence and conservation queries for the number of genomes containing the k-mers in a window. MEMO achieves smaller index sizes and faster queries than _k_-mer-based approaches like KMC3 and PanKmer. See the small example <a href="https://github.com/StephenHwang/MEMO/tree/master/example">here</a> on running MEMO for visualizing sequence conservation.
 
 
 ## Installation
@@ -31,7 +28,7 @@ cd MEMO
 ## Usage
 ### Index Creation
 To create a MEMO conservation index, specify a list of genomes `-g` and an output location `-o` and prefix `-p`. To create the MEMO membership index, include the `-m` flag.
-Each line in the `genome_list.txt` is the path to each genome in the pangenome; the first genome in the list of genomes is the pangenome pivot. 
+Each line in the `genome_list.txt` is the path to each genome in the pangenome; the first genome in the list of genomes is the pangenome pivot.
 ```sh
 ./memo index \
   -g genome_list.txt \
@@ -40,7 +37,7 @@ Each line in the `genome_list.txt` is the path to each genome in the pangenome; 
 ```
 
 ### Querying k-mer membership and conservation
-Once you have created your indexes, specify your length-k `k`, genomic region `-r`, and the total number of genomes in your genome (inclusive of pivot) `-n`. Then run `memo query` for the conservation query. To run the membership query, include the `-m` flag.
+Once you have created your indexes, specify your length-_k_ `k`, genomic region `-r`, and the total number of genomes in your genome (inclusive of pivot) `-n`. Then run `memo query` for the conservation query. To run the membership query, include the `-m` flag.
 ```sh
 ./memo query \
   -b index.parquet \
