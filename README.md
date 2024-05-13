@@ -21,6 +21,12 @@ MEMO relies on the following dependencies:
     - <a href="http://www.htslib.org/download/">samtools</a>
     - <a href="https://github.com/lh3/seqtk">seqtk</a>
 
+After downloading/building the required dependencies, clone and run MEMO from it's repo:
+```
+git clone https://github.com/StephenHwang/MEMO.git
+cd MEMO
+```
+
 
 ## Usage
 ### Index Creation
