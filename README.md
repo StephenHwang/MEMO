@@ -17,7 +17,7 @@ MEMO relies on the following dependencies:
     - <a href="https://github.com/lh3/seqtk">seqtk</a>
 
 
-Build MONI from scratch:
+Compile MONI from repo:
 ```
 sudo apt-get install -y build-essential cmake git python3 zlib1g-dev
 git clone https://github.com/maxrossi91/moni
