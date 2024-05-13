@@ -56,7 +56,7 @@ do
 done
 
 echo "MEMO - plotting sequence conservation"
-../analysis/plot_conservation.py \
+./plot_conservation.py \
   -i $INPUT_FILE \
   -o $OUTPUT_FILE \
   -n $NUM_GENOMES \
