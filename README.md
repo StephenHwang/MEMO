@@ -39,10 +39,10 @@ Once you have created your indexes, specify your length-k `k`, genomic region `-
   -k k \
   -n num_genomes \
   -r chr:start-end \
-  -o memo_membership.txt
+  -o memo_c_out.txt
 ```
 
-## Visualizing sequence conservation
+### Visualizing sequence conservation
 <figure>
 <img src="img/memo_hla_sequence_conservation.png" alt="hprc_hla_seq_conservation"/>
 <figcaption> <p align="center">31-mer sequence conservation of the Human Leucocyte Antigen locus in the HPRC pangenome.</p></figcaption>
@@ -51,7 +51,7 @@ Once you have created your indexes, specify your length-k `k`, genomic region `-
 From the MEMO conservation query, MEMO can visualize sequence conservation:
 ```sh
 ./memo view \
-  -i memo_conservation.txt \
+  -i memo_c_out.txt \
   -o out.png \
   -n num_genomes \
   -b num_bins
