@@ -48,8 +48,6 @@ do
     esac
 done
 
-# MONI=/Users/stephenhwang/Documents/projects/langmead_lab/moni/build/moni
-
 # prep pivot
 PIVOT=$(head -n 1 $GENOME_LIST)
 samtools faidx $PIVOT
@@ -57,22 +55,18 @@ mv $PIVOT.fai $OUTPUT_DIR
 
 tail -n+2 $GENOME_LIST | while read FILE
 do
-  echo $FILE
   FILE_BASE=$(basename $FILE)
-
+  # pre-process input fasta files
   seqtk seq -S $FILE > $OUTPUT_DIR/$FILE_BASE.w_rc
   samtools faidx -i $OUTPUT_DIR/$FILE_BASE.w_rc $(cat $OUTPUT_DIR/$FILE_BASE.w_rc | grep '^>' | tr -d '>') >> $OUTPUT_DIR/$FILE_BASE.w_rc
-  # sed -i '' -e '/^>/ !s/$/\$/g' $FILE.w_rc
   sed -i -e '/^>/ !s/$/\$/g' $OUTPUT_DIR/$FILE_BASE.w_rc
 
+  # Build MONI index and find MS to pivot
   echo "Build $FILE_BASE MONI index"
-  # $MONI build \
   moni build \
     -r $OUTPUT_DIR/$FILE_BASE.w_rc -f \
     -o $OUTPUT_DIR/$FILE_BASE.w_rc
-
   echo "Finding MS between pivot and $FILE_BASE"
-  # $MONI ms \
   moni ms \
     -i $OUTPUT_DIR/$FILE_BASE.w_rc \
     -p $PIVOT \
@@ -111,4 +105,4 @@ echo "Compressing index."
   -f $OUTPUT_DIR/$OUTPUT_PREFIX.bed \
   -o $OUTPUT_DIR/$OUTPUT_PREFIX.parquet
 
-echo "DONE making index"
+echo "DONE"
