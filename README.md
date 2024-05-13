@@ -1,5 +1,5 @@
-# MEMO: MEM-based pangenome indexing for k-mer queries
-Maximal Exact Match Ordered (MEMO) is a pangenome indexing method based on maximal exact matches (MEMs) between sequences.
+# MEMO: MEM-based pangenome indexing for _k_-mer queries
+Maximal Exact Match Ordered (MEMO) is a pangenome indexing method based on maximal exact matches (MEMs) between genomes.
 
 A single MEMO index can handle arbitrary-length-_k_ _k_-mer queries over pangenomic windows. MEMO performs membership queries for per-genome _k_-mer presence/absence and conservation queries for the number of genomes containing the k-mers in a window. MEMO achieves smaller index sizes and faster queries than _k_-mer-based approaches like KMC3 and PanKmer. See the small example <a href="https://github.com/StephenHwang/MEMO/tree/master/example">here</a> on running MEMO for visualizing sequence conservation.
 
@@ -7,18 +7,18 @@ A single MEMO index can handle arbitrary-length-_k_ _k_-mer queries over pangeno
 ## Installation
 MEMO relies on the following dependencies:
   - Python:
-    - python 3.11
+    - python=3.11
     - pandas
-    - numpy
     - plotnine
     - pyarrow
     - numba
+    - numpy
   - Others:
     - <a href="https://github.com/maxrossi91/moni">MONI</a>
     - <a href="http://www.htslib.org/download/">samtools</a>
     - <a href="https://github.com/lh3/seqtk">seqtk</a>
 
-After downloading/building the required dependencies, clone and run MEMO from it's repo:
+After downloading/building the required dependencies, clone and run MEMO from its repo:
 ```
 git clone https://github.com/StephenHwang/MEMO.git
 cd MEMO
@@ -28,7 +28,7 @@ cd MEMO
 ## Usage
 ### Index Creation
 To create a MEMO conservation index, specify a list of genomes `-g` and an output location `-o` and prefix `-p`. To create the MEMO membership index, include the `-m` flag.
-Each line in the `genome_list.txt` is the path to each genome in the pangenome; the first genome in the list of genomes is the pangenome pivot.
+Each line in the `genome_list.txt` is the path to each genome in the pangenome; the first genome listed is the pangenome pivot.
 ```sh
 ./memo index \
   -g genome_list.txt \
@@ -53,7 +53,7 @@ Once you have created your indexes, specify your length-_k_ `k`, genomic region 
 <figcaption> <p align="center">31-mer sequence conservation of the Human Leucocyte Antigen locus in the HPRC pangenome.</p></figcaption>
 </figure>
 
-From the MEMO conservation query, MEMO can visualize sequence conservation:
+After the conservation query, use MEMO to visualize sequence conservation:
 ```sh
 ./memo view \
   -i memo_c_out.txt \
