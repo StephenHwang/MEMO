@@ -13,8 +13,7 @@ import numpy as np
 from collections import Counter
 from plotnine import \
     ggplot, aes, theme, themes, element_blank, element_line, element_text, \
-    geom_bar, ggtitle, xlab, ylab, scale_x_continuous, scale_y_continuous, \
-    scale_fill_gradient
+    geom_bar, ggtitle, xlab, ylab, scale_y_continuous, scale_fill_gradient
 from plotnine.options import figure_size
 
 
@@ -46,28 +45,24 @@ def fileReader(path):
 
 def preprocess_data(path, n_docs, n_bins):
     ''' Preprocess conservation data for plotting. '''
+    n_bins += 1
     num_docs_per_pos = list(map(int, list(fileReader(path))))
     positions = len(num_docs_per_pos)
-
     per_bin_doc_composition_list = []
     bin_space = list(map(int,np.linspace(0, positions, n_bins)))
-
     for bin_idx, start_end in enumerate(list(zip(bin_space[:-1], bin_space[1:]))):
         bin_start, bin_end = start_end
         doc_count_per_order_in_bin = Counter(num_docs_per_pos[bin_start : bin_end])
         normalized_doc_count_per_order_in_bin = [(order, doc_count_per_order_in_bin[order]/sum(doc_count_per_order_in_bin.values())) for order in range(n_docs + 1) ]
         normalized_doc_count_per_order_in_bin_in_sorted_order_mem_order = sorted(normalized_doc_count_per_order_in_bin, key=lambda x: x[0])   # sorting by order
         per_bin_doc_composition_list.append([bin_idx]+[norm_cnt[1] for norm_cnt in normalized_doc_count_per_order_in_bin_in_sorted_order_mem_order])
-
     cnames = ['pos'] + list(range(n_docs + 1))
     per_bin_doc_composition_df = pd.DataFrame(per_bin_doc_composition_list, columns=cnames)
-
     per_bin_doc_composition_df = pd.melt(per_bin_doc_composition_df, id_vars=['pos'], value_vars=cnames[1:])
     per_bin_doc_composition_df.columns = ['bin','No. Genomes','value']
     per_bin_doc_composition_df['No. Genomes'] = pd.Categorical(per_bin_doc_composition_df['No. Genomes'], categories=cnames[:0:-1])
     per_bin_doc_composition_df['No. Genomes'] = per_bin_doc_composition_df['No. Genomes'].astype('float64')
     return per_bin_doc_composition_df[per_bin_doc_composition_df['No. Genomes'] != n_docs]
-
 
 def plot_sequence_conservation(data, n_docs, n_bins):
     ''' Plot MEM-version of Panagram. '''
@@ -83,7 +78,6 @@ def plot_sequence_conservation(data, n_docs, n_bins):
             expand=(0,0),
             limits=(0,1)
         ) +
-        scale_x_continuous(expand=(0,0)) +
         scale_fill_gradient(low='#000000', high='#c6dbef',
                             limits=(1,n_docs-1)
                            ) +

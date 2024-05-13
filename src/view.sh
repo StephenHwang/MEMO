@@ -44,7 +44,7 @@ do
             NUM_GENOMES=$OPTARG
             ;;
         b )
-            QUERY_REGION=$OPTARG
+            NUM_BINS=$OPTARG
             ;;
         d )
             DPI=$OPTARG
