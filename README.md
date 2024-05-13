@@ -3,27 +3,29 @@ Maximal Exact Match Ordered (MEMO) is a pangenome indexing method based on maxim
 
 A single MEMO index can handle arbitrary-length-k k-mer queries over pangenomic windows. MEMO performs membership queries for per-genome k-mer presence/absence and conservation queries for the number of genomes containing the k-mers in a window. MEMO achieves smaller index size and faster queries compared to k-mer-based approaches like KMC3 and PanKmer.
 
-MEMO relies on <a href="https://github.com/maxrossi91/moni">MONI</a> by Massimiliano Rossi for finding pairwise matching statistics between the user-selected pivot genome and all other genomes in a pangenome.
+MEMO depends on <a href="https://github.com/maxrossi91/moni">MONI</a> by Massimiliano Rossi for finding pairwise matching statistics between the user-selected pivot genome and all other genomes in a pangenome.
+See the small example <a href="https://github.com/StephenHwang/MEMO/tree/master/example">here</a> on running MEMO for visualizing sequence conservation.
 
 
 ## Installation
-dependencies:
-  MONI
-  python:
-    python 3.11
-    pandas
-    numpy
-    plotnine
-    pyarrow
-    numba
-  others:
-    samtools
-    seqtk
+MEMO relies on the following dependencies:
+  - Python:
+    - python 3.11
+    - pandas
+    - numpy
+    - plotnine
+    - pyarrow
+    - numba
+  - Others:
+    - <a href="https://github.com/maxrossi91/moni">MONI</a>
+    - <a href="http://www.htslib.org/download/">samtools</a>
+    - <a href="https://github.com/lh3/seqtk">seqtk</a>
 
 
 ## Usage
 ### Index Creation
-To create a MEMO conservation index, specify a list of genomes `-g` and an output location `-o` and prefix `-p`. The first genome in the list of genomes is the pangenome pivot. To create the MEMO membership index, include the `-m` flag.
+To create a MEMO conservation index, specify a list of genomes `-g` and an output location `-o` and prefix `-p`. To create the MEMO membership index, include the `-m` flag.
+Each line in the `genome_list.txt` is the path to each genome in the pangenome; the first genome in the list of genomes is the pangenome pivot. 
 ```sh
 ./memo index \
   -g genome_list.txt \

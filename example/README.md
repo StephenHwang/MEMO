@@ -26,7 +26,7 @@ Query 3-mer conservation:
   -o ../example/work/memo_c_out.txt
 ```
 
-Visualizing sequence conservation:
+Visualize sequence conservation with 3-mers:
 ```sh
 ./memo view \
   -i ../example/work/memo_c_out.txt \
