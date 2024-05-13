@@ -61,6 +61,7 @@ echo $THREADS
 echo $MEMBERSHIP_INDEX
 echo ""
 
+MONI=/Users/stephenhwang/Documents/projects/langmead_lab/moni/build/moni
 
 # Pre-process fasta files
 #   for every non-pivot genome:
@@ -70,63 +71,70 @@ echo ""
 #     faidx
 
 # prep pivot
-PIVOT=$(head -n 1 genomes.txt)
+PIVOT=$(head -n 1 $GENOME_LIST)
 samtools faidx $PIVOT
-# now is $PIVOT.fai
+
+tail -n+2 $GENOME_LIST | while read FILE
+do
+  echo $FILE
+  seqtk seq -S $FILE > $FILE.w_rc
+  samtools faidx -i $FILE.w_rc $(cat $FILE.w_rc | grep '^>' | tr -d '>') >> $FILE.w_rc
+  sed -i '' -e '/^>/ !s/$/\$/g' $FILE.w_rc
+  echo "Build $FILE MONI index"
+  $MONI build \
+    -r $FILE.w_rc -f
+
+  # -r "${header_path}" -f \
+  # -o "${index_dir}/${header}"
+
+done
 
 
-# for every genome
-# {{{
-seqtk seq -S ref_4.fa > ref_4_w_rc.fa
-samtools faidx -i ref_4_w_rc.fa $(cat ref_4_w_rc.fa | grep '^>' | tr -d '>') >> ref_4_w_rc.fa
-sed -i '' -e '/^>/ !s/$/\$/g' ref_4_w_rc.fa
 
-echo "Build ${header} index"
-moni build \
-  -r "${header_path}" -f \
-  -o "${index_dir}/${header}"
 
-echo "Finding ${query_fasta} MS on ${header} index"
-moni ms \
-  -t $THREADS \
-  -i "${index_dir}/${header}" \
-  -p ${query_fasta} \
-  -o "${index_dir}/${header}"
-
-# convert MONI.lengths to vertical format and then to DAP
-cat $MONI_LENGTHS_FILE | grep -v '^>' | tr ' ' '\n' | grep . > $OUTDIR/$(basename $LENGTHS_FILE)
+#
+#echo "Finding ${query_fasta} MS on ${header} index"
+#moni ms \
+#  -t $THREADS \
+#  -i "${index_dir}/${header}" \
+#  -p ${query_fasta} \
+#  -o "${index_dir}/${header}"
+#
+## convert MONI.lengths to vertical format and then to DAP
+#cat $MONI_LENGTHS_FILE | grep -v '^>' | tr ' ' '\n' | grep . > $OUTDIR/$(basename $LENGTHS_FILE)
 # }}}
 
 
 
 
-# then paste into DAP
-paste -d ' ' $(ls *.fasta | sort) | nl -v0 -w1 -s' ' > dap.txt
-
-# From MSs to BED files
-if [ "$MEMBERSHIP_INDEX" = true ] ; then
-  echo "Making membership index"
-  dap_to_ms_bed.py \
-    --mem \
-    --overlap \
-    --fai $PIVOT.fai \
-    --dap dap.txt \
-    > $OUTPUT_DIR/$OUTPUT_PREFIX.bed
-else
-  echo "Making conservation index"
-  dap_to_ms_bed.py \
-    --mem \
-    --order \
-    --overlap \
-    --fai $PIVOT.fai \
-    --dap dap.txt \
-    > $OUTPUT_DIR/$OUTPUT_PREFIX.bed
-fi
-
-# Compressing BED index
-echo "Compressing index."
-parquet_compress_bed.py \
-  -f $OUTPUT_DIR/$OUTPUT_PREFIX.bed \
-  -o $OUTPUT_DIR/$OUTPUT_PREFIX.parquet
-
-echo "Index creation done."
+#
+## then paste into DAP
+#paste -d ' ' $(ls *.fasta | sort) | nl -v0 -w1 -s' ' > dap.txt
+#
+## From MSs to BED files
+#if [ "$MEMBERSHIP_INDEX" = true ] ; then
+#  echo "Making membership index"
+#  dap_to_ms_bed.py \
+#    --mem \
+#    --overlap \
+#    --fai $PIVOT.fai \
+#    --dap dap.txt \
+#    > $OUTPUT_DIR/$OUTPUT_PREFIX.bed
+#else
+#  echo "Making conservation index"
+#  dap_to_ms_bed.py \
+#    --mem \
+#    --order \
+#    --overlap \
+#    --fai $PIVOT.fai \
+#    --dap dap.txt \
+#    > $OUTPUT_DIR/$OUTPUT_PREFIX.bed
+#fi
+#
+## Compressing BED index
+#echo "Compressing index."
+#parquet_compress_bed.py \
+#  -f $OUTPUT_DIR/$OUTPUT_PREFIX.bed \
+#  -o $OUTPUT_DIR/$OUTPUT_PREFIX.parquet
+#
+#echo "Index creation done."
