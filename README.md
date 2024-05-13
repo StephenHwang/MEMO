@@ -7,9 +7,8 @@ MEMO relies on <a href="https://github.com/maxrossi91/moni">MONI</a> by Massimil
 
 
 ## Installation
-TBD
-
 dependencies:
+  MONI
   python:
     python 3.11
     pandas
@@ -24,14 +23,13 @@ dependencies:
 
 ## Usage
 ### Index Creation
-To create a MEMO conservation index, specify a list of genomes `-g` and an output location `-o` and prefix `-p`. The first genome in the list of genomes is the pangenome pivot. To create a MEMO membership index, include the `-m` flag.
+To create a MEMO conservation index, specify a list of genomes `-g` and an output location `-o` and prefix `-p`. The first genome in the list of genomes is the pangenome pivot. To create the MEMO membership index, include the `-m` flag.
 ```sh
 ./memo index \
+  -g genome_list.txt \
   -o output_dir \
-  -p output_prefix \
-  -g genome_list.txt
+  -p output_prefix
 ```
-
 
 ### Querying k-mer membership and conservation
 Once you have created your indexes, specify your length-k `k`, genomic region `-r`, and the total number of genomes in your genome (inclusive of pivot) `-n`. Then run `memo query` for the conservation query. To run the membership query, include the `-m` flag.

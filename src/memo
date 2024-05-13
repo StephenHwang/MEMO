@@ -27,17 +27,17 @@ case $SUBCOMMAND in
 
   # Index region
   index)
-    ./index.sh "$@"
+    bash index.sh "$@"
     ;;
 
   # Query region
   query)
-    ./query.sh "$@"
+    bash query.sh "$@"
     ;;
 
   # Query region
   view)
-    ./view.sh "$@"
+    bash view.sh "$@"
     ;;
 
   *)
