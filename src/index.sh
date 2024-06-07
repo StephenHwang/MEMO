@@ -51,7 +51,7 @@ done
 # prep pivot
 PIVOT=$(head -n 1 $GENOME_LIST)
 samtools faidx $PIVOT
-mv $PIVOT.fai $OUTPUT_DIR
+# mv $PIVOT.fai $OUTPUT_DIR
 
 tail -n+2 $GENOME_LIST | while read FILE
 do
@@ -85,18 +85,20 @@ if [ "$MEMBERSHIP_INDEX" = true ] ; then
   ./dap_to_ms_bed.py \
     --mem \
     --overlap \
-    --fai $OUTPUT_DIR/$(basename $PIVOT.fai) \
+    --fai $PIVOT.fai \
     --dap $OUTPUT_DIR/dap.txt \
     > $OUTPUT_DIR/$OUTPUT_PREFIX.bed
+    # --fai $OUTPUT_DIR/$(basename $PIVOT.fai) \
 else
   echo "Making conservation index"
   ./dap_to_ms_bed.py \
     --mem \
     --order \
     --overlap \
-    --fai $OUTPUT_DIR/$(basename $PIVOT.fai) \
+    --fai $PIVOT.fai \
     --dap $OUTPUT_DIR/dap.txt \
     > $OUTPUT_DIR/$OUTPUT_PREFIX.bed
+    # --fai $OUTPUT_DIR/$(basename $PIVOT.fai) \
 fi
 
 # Compressing BED index
