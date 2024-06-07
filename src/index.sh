@@ -48,6 +48,9 @@ do
     esac
 done
 
+# Get script dir
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 # prep pivot
 PIVOT=$(head -n 1 $GENOME_LIST)
 samtools faidx $PIVOT
@@ -82,7 +85,7 @@ paste -d ' ' $(tail -n+2 $GENOME_LIST | xargs -I {} basename {} | sed 's/$/.w_rc
 # From MSs to BED files
 if [ "$MEMBERSHIP_INDEX" = true ] ; then
   echo "Making membership index"
-  ./dap_to_ms_bed.py \
+  $SCRIPT_DIR/dap_to_ms_bed.py \
     --mem \
     --overlap \
     --fai $PIVOT.fai \
@@ -91,7 +94,7 @@ if [ "$MEMBERSHIP_INDEX" = true ] ; then
     # --fai $OUTPUT_DIR/$(basename $PIVOT.fai) \
 else
   echo "Making conservation index"
-  ./dap_to_ms_bed.py \
+  $SCRIPT_DIR/dap_to_ms_bed.py \
     --mem \
     --order \
     --overlap \
@@ -103,7 +106,7 @@ fi
 
 # Compressing BED index
 echo "Compressing index."
-./parquet_compress_bed.py \
+$SCRIPT_DIR/parquet_compress_bed.py \
   -f $OUTPUT_DIR/$OUTPUT_PREFIX.bed \
   -o $OUTPUT_DIR/$OUTPUT_PREFIX.parquet
 

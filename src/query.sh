@@ -60,9 +60,12 @@ do
     esac
 done
 
+# Get script dir
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 if [ "$MEMBERSHIP_QUERY" = true ] ; then
   echo "MEMO - membership query"
-  ./memo_query.py \
+  $SCRIPT_DIR/memo_query.py \
     -m \
     -b $PARQUET_FILE \
     -r $QUERY_REGION \
@@ -71,7 +74,7 @@ if [ "$MEMBERSHIP_QUERY" = true ] ; then
     -o $OUTPUT_FILE
 else
   echo "MEMO - conservation query"
-  ./memo_query.py \
+  $SCRIPT_DIR/memo_query.py \
     -b $PARQUET_FILE \
     -r $QUERY_REGION \
     -k $K \

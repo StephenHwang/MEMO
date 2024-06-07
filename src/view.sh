@@ -55,8 +55,11 @@ do
     esac
 done
 
+# Get script dir
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 echo "MEMO - plotting sequence conservation"
-./plot_conservation.py \
+$SCRIPT_DIR/plot_conservation.py \
   -i $INPUT_FILE \
   -o $OUTPUT_FILE \
   -n $NUM_GENOMES \
