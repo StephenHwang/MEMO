@@ -19,6 +19,9 @@ if [ "$#" -eq 0 ] || [ "$1" = "-h" ]; then
     usage
 fi
 
+# Get script dir
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 # get subcommand
 SUBCOMMAND=$1; shift
 
@@ -27,17 +30,17 @@ case $SUBCOMMAND in
 
   # Index region
   index)
-    ./index.sh "$@"
+    $SCRIPT_DIR/index.sh "$@"
     ;;
 
   # Query region
   query)
-    ./query.sh "$@"
+    $SCRIPT_DIR/query.sh "$@"
     ;;
 
   # Query region
   view)
-    ./view.sh "$@"
+    $SCRIPT_DIR/view.sh "$@"
     ;;
 
   *)
