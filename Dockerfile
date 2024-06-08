@@ -9,6 +9,7 @@ RUN apt-get update -qq && \
                     cmake \
                     build-essential \
                     python3 \
+                    python3-pip \
                     gcc-9 \
                     g++-9 \
                     seqtk \
@@ -28,6 +29,9 @@ RUN git clone https://github.com/StephenHwang/moni.git && \
 # Add the build directory to the PATH
 ENV PATH="/moni/build:${PATH}"
 
+# Install Python requirements
+COPY requirements.txt ./
+RUN pip3 install -r requirements.txt
 
 # Clone MEMO
 RUN git clone https://github.com/StephenHwang/MEMO.git 

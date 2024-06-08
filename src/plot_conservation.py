@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Run: visualize sequence conservation
 #  ./plot_conservation.py \
