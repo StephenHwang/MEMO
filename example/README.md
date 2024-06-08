@@ -33,4 +33,37 @@ Visualize sequence conservation with 3-mers:
   -o test.png \
   -n 5 \
   -b 4
+```
+
+## With Docker
+Here is an example of the equivalent commands using Docker.
+
+```sh
+docker run --platform linux/amd64 \
+  -v $(pwd):/data \
+  memo:latest \
+  memo index \
+    -g /data/genome_list.txt \
+    -o /data \
+    -p test
+
+docker run --platform linux/amd64 \
+  -v $(pwd):/data \
+  memo:latest \
+  memo query \
+    -b /data/test.parquet \
+    -k 3 \
+    -n 5 \
+    -r ref_1:0-20 \
+    -o /data/memo_c_out.txt
+
+docker run --platform linux/amd64 \
+  -v $(pwd):/data \
+  memo:latest \
+  memo view \
+    -i /data/memo_c_out.txt \
+    -o /data/test.png \
+    -n 5 \
+    -b 4
+```
 
