@@ -3,6 +3,17 @@ Maximal Exact Match Ordered (MEMO) is a pangenome indexing method based on maxim
 
 
 ## Installation
+### Docker/Singularity Container
+MEMO is available as a Docker image on <a href="https://hub.docker.com/r/hwangstephen/memo">DockerHub</a>.
+```sh
+### Docker:
+docker pull hwangstephen/memo:latest
+docker run hwangstephen/memo:latest memo -h
+### Singularity:
+singularity pull docker://hwangstephen/memo:latest
+./memo_latest.sif memo -h
+```
+
 ### Build from source
 MEMO relies on the following dependencies:
   - Python:
@@ -34,16 +45,6 @@ git clone https://github.com/StephenHwang/MEMO.git
 cd MEMO
 ```
 
-### Docker/Singularity Container
-MEMO is available on <a href="https://hub.docker.com/r/hwangstephen/memo">DockerHub</a>.
-```sh
-### with docker:
-docker pull hwangstephen/memo:latest
-docker run hwangstephen/memo:latest memo -h
-### with singularity:
-singularity pull docker://hwangstephen/memo:latest
-./memo_latest.sif memo -h
-```
 
 ## Usage
 ### Index Creation
