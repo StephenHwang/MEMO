@@ -85,23 +85,21 @@ paste -d ' ' $(tail -n+2 $GENOME_LIST | xargs -I {} basename {} | sed 's/$/.w_rc
 # From MSs to BED files
 if [ "$MEMBERSHIP_INDEX" = true ] ; then
   echo "Making membership index"
-  $SCRIPT_DIR/dap_to_ms_bed.py \
+  $SCRIPT_DIR/dap_to_bed.py \
     --mem \
     --overlap \
     --fai $PIVOT.fai \
     --dap $OUTPUT_DIR/dap.txt \
     > $OUTPUT_DIR/$OUTPUT_PREFIX.bed
-    # --fai $OUTPUT_DIR/$(basename $PIVOT.fai) \
 else
   echo "Making conservation index"
-  $SCRIPT_DIR/dap_to_ms_bed.py \
+  $SCRIPT_DIR/dap_to_bed.py \
     --mem \
     --order \
     --overlap \
     --fai $PIVOT.fai \
     --dap $OUTPUT_DIR/dap.txt \
     > $OUTPUT_DIR/$OUTPUT_PREFIX.bed
-    # --fai $OUTPUT_DIR/$(basename $PIVOT.fai) \
 fi
 
 # Compressing BED index

@@ -3,14 +3,10 @@
 # Name: dap_to_bed.py
 # Description: This script converts full document profile to a bed file of
 #              matching statistics for given genome.
-# Date: Dec 23, 2023
+# Date: Jun 11, 2024
 #
 # Run:
-#   ./dap_to_ms_bed.py --mem --fai input.fna.fai --dap full_dap.txt > file.out
-#
-# Example data:
-#   /home/stephen/Documents/projects/langmead_lab/analysis/order_mems/bacteria_5/e_coli_pivot/input.fna.fai
-#   /home/stephen/Documents/projects/langmead_lab/analysis/order_mems/bacteria_5/e_coli_pivot/full_dap.txt
+#   ./dap_to_bed.py --mem --order --fai input.fa.fai --dap dap.txt > file.out
 
 import argparse
 import os
@@ -30,6 +26,13 @@ def parse_fai(fai_path):
         header, length, *_ = row.split() # get header and length, discard rest of fai
         intervals.append((header, csum, csum := csum+int(length)))
     return intervals
+
+def make_fai_dict(record_intervals):
+    ''' Make dictionary of query headers and lengths. '''
+    fai_dict = dict()
+    for header, start, end in record_intervals:
+        fai_dict[header] = end - start
+    return fai_dict
 
 def print_dap_as_ms_bed(dap_stream, record_intervals, sort_lcps):
     '''
@@ -65,6 +68,7 @@ class print_dap_as_mem_bed:
         ''' Initialize DAP and MEM attributes. '''
         self.dap_stream = dap_stream
         self.record_intervals = record_intervals
+        self.fai_dict = make_fai_dict(record_intervals)
         self.print_overlaps = print_overlaps
         self.sort_lcps = sort_lcps
         self.prev_mem_intervals_by_order = {}
@@ -90,7 +94,7 @@ class print_dap_as_mem_bed:
         ''' Return the overlap interval beteween a and b, else None. '''
         interval_start = max(a[0], b[0])
         interval_end = min(a[1], b[1])
-        if interval_end >= interval_start:
+        if interval_end >= interval_start:        # handles bookend overlaps
             return interval_start, interval_end
 
     def print_interval(self, header, start, end, annot):
@@ -114,16 +118,20 @@ class print_dap_as_mem_bed:
         header_prev = None                        # Initial row MEM printing, as if transitioning records
         for dap_row_next in self.dap_stream:      # Iterate through record rows of DAP
             header_curr, pos_curr, doc_array_curr = self.get_new_record(dap_row_next)
-            if header_prev == header_curr:        # same record, check if MEM
+            if header_prev == header_curr:        # same record
                 for annot_idx, (lcp_prev, lcp_curr) in enumerate(zip(doc_array_prev, doc_array_curr), start=1):
-                    if (lcp_prev <= lcp_curr):    # check if interval is a MEM
+                    if (lcp_prev <= lcp_curr):    # print if interval is a MEM
                         self.print_interval(header_curr, pos_curr, pos_curr+lcp_curr, annot_idx)
-            else:    # new record, reset saved MEMs and print first row (of file or record transition) as valid MEMs
-                     # NOTE: we do NOT print the prev (last in record) row as valid MEMs
-                self.prev_mem_intervals_by_order = {}
-                self.print_current_dap_row(header_curr, pos_curr, doc_array_curr)
+            else:                                 # new record; record chr end, reset and print initial new-record MEMs
+                if header_prev:                   # print chr end
+                    prev_chr_len = self.fai_dict[header_prev]
+                    self.print_current_dap_row(header_prev, prev_chr_len, [prev_chr_len] * len(doc_array_curr))  # print end of chr BED point
+                self.prev_mem_intervals_by_order = {}     # reset MEMs
+                self.print_current_dap_row(header_curr, pos_curr, doc_array_curr)    # print initial MEMs
             header_prev, pos_prev, doc_array_prev = header_curr, pos_curr, doc_array_curr
-
+        # print last chr, end of chr BED point
+        prev_chr_len = self.fai_dict[header_prev]
+        self.print_current_dap_row(header_prev, prev_chr_len, [prev_chr_len] * len(doc_array_curr) )
 
 
 ################################################################################
