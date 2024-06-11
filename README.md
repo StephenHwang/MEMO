@@ -87,4 +87,3 @@ After the conservation query, use MEMO to visualize sequence conservation:
 
 ## Citing MEMO
 >Stephen Hwang, Nathaniel K. Brown, Omar Y. Ahmed, Katharine M. Jenike, Sam Kovaka, Michael C. Schatz, Ben Langmead. MEM-based pangenome indexing for k-mer queries (2024). bioRxiv.
-Matching Statistics for Targeted Nanopore Sequencing. iScience, 102696.
