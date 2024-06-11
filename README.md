@@ -1,4 +1,5 @@
-# MEMO: MEM-based pangenome indexing for _k_-mer queries
+# MEMO: MEM-based pangenome indexing for _k_-mer queries ![GitHub release (latest by date)](https://img.shields.io/github/v/release/StephenHwang/MEMO) ![GitHub](https://img.shields.io/github/license/StephenHwang/MEMO?color=green)
+
 Maximal Exact Match Ordered (MEMO) is a pangenome indexing method based on maximal exact matches (MEMs) between genomes. A single MEMO index can handle arbitrary-length-_k_ _k_-mer queries over pangenomic windows. MEMO performs membership queries for per-genome _k_-mer presence/absence and conservation queries for the number of genomes containing the _k_-mers in a window. MEMO achieves smaller index sizes and faster queries than _k_-mer-based approaches like KMC3 and PanKmer. See the small example <a href="https://github.com/StephenHwang/MEMO/tree/master/example">here</a> on running MEMO for visualizing sequence conservation.
 
 
@@ -83,3 +84,7 @@ After the conservation query, use MEMO to visualize sequence conservation:
   -b num_bins
 ```
 
+
+## Citing MEMO
+>Stephen Hwang, Nathaniel K. Brown, Omar Y. Ahmed, Katharine M. Jenike, Sam Kovaka, Michael C. Schatz, Ben Langmead. MEM-based pangenome indexing for k-mer queries (2024). bioRxiv.
+Matching Statistics for Targeted Nanopore Sequencing. iScience, 102696.
