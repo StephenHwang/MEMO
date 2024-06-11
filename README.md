@@ -43,7 +43,8 @@ make install
 After downloading/building the required dependencies, clone and run MEMO from its repo:
 ```
 git clone https://github.com/StephenHwang/MEMO.git
-cd MEMO
+cd MEMO/src
+./memo -h
 ```
 
 
